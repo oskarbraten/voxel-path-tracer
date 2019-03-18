@@ -149,6 +149,7 @@ bool scatter(ray r, in hit_record record, out vec3 attenuation, out ray scattere
     }
 }
 
+// TODO: investigate divergence..
 
 // Using a modified version of:
 // A Fast Voxel Traversal Algorithm for Ray Tracing, John Amanatides & Andrew Woo. 1987.
