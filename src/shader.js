@@ -1,5 +1,5 @@
-import frag from './shaders/fragment.js';
-import vert from './shaders/vertex.js';
+import frag from './shaders/pathtracing/fragment.js';
+import vert from './shaders/pathtracing/vertex.js';
 
 export default {
     new(context, argDefines) {
@@ -22,8 +22,7 @@ export default {
                 seed: context.getUniformLocation(program, 'seed'),
 
                 numberOfSamples: context.getUniformLocation(program, 'number_of_samples'),
-                maximumDepth: context.getUniformLocation(program, 'maximum_depth'),
-                antialiasing: context.getUniformLocation(program, 'antialiasing')
+                maximumDepth: context.getUniformLocation(program, 'maximum_depth')
             }
         };
     }

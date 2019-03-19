@@ -15,6 +15,12 @@ document.body.appendChild(renderer.domElement);
 
 
 const cameraNode = Node.new();
+
+cameraNode.applyTranslation(-5.0, 64.0, -5.0);
+
+cameraNode.applyRotationY(Math.PI + 0.8);
+cameraNode.applyRotationX(-Math.PI/6);
+
 const camera = Camera.new(cameraNode, window.innerWidth / window.innerHeight);
 
 window.addEventListener('resize', () => {
@@ -80,23 +86,32 @@ window.addEventListener('keyup', (e) => {
 });
 
 let parameters = {
-    numberOfSamples: 15,
-    maximumDepth: 20,
-    antialiasing: true
+    numberOfSamples: 6,
+    maximumDepth: 8,
+    update: () => {
+        renderer.setParams({
+            numberOfSamples: parameters.numberOfSamples,
+            maximumDepth: parameters.maximumDepth
+        });
+    }
 };
 
 const gui = new dat.GUI();
 
-gui.add(parameters, 'numberOfSamples', 1, 180);
-gui.add(parameters, 'maximumDepth', 1, 100);
-gui.add(parameters, 'antialiasing');
+gui.add(parameters, 'numberOfSamples', 1, 128, 1).name("Num. Samples");
+gui.add(parameters, 'maximumDepth', 1, 64, 1).name("Maximum Depth");
+gui.add(parameters, 'update').name("Update shader");
 gui.add(move, 'speed', 0.001, 0.01).name("Movement speed");
+
+let meter = new FPSMeter();
 
 let then = 0;
 function loop(now) {
 
     const delta = now - then;
     then = now;
+
+    meter.tickStart();
 
     const moveSpeed = move.speed * delta;
 
@@ -127,6 +142,8 @@ function loop(now) {
 
     cameraNode.tick();
     renderer.draw(delta, camera, parameters);
+
+    meter.tick();
 
     window.requestAnimationFrame(loop);
 

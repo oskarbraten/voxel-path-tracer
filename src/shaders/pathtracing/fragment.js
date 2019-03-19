@@ -3,8 +3,8 @@ const glsl = x => x.raw[0];
 export default glsl`#version 300 es
 
 precision highp float;
-precision mediump int;
-precision mediump usampler3D;
+precision highp int;
+precision highp usampler3D;
 
 __DEFINES__
 
@@ -23,11 +23,7 @@ uniform float delta_time;
 uniform float total_time;
 uniform float seed;
 
-// note: passing these as defines may improve performance.
-uniform int maximum_depth;
-uniform int number_of_samples;
-uniform float antialiasing;
-
+uniform sampler2D previous_frame;
 uniform usampler3D voxel_data;
 
 struct material {
@@ -45,7 +41,7 @@ float rand_seed = 1.0;
 
 float rand() {
     vec2 seeded_uv = vec2(uv.s + rand_seed, uv.t + rand_seed);
-    rand_seed += 0.0321; // seed;
+    rand_seed += 0.01; // seed;
     return fract(sin(dot(seeded_uv.st, vec2(12.9898,78.233))) * 43758.5453);
 }
 
@@ -194,18 +190,12 @@ bool voxel_traversal(in ray r, out hit_record record) {
     do {
         if (t_max.x < t_max.y) {
             if (t_max.x < t_max.z) {
-                // float xx = float((step.x > 0) ? current_voxel.x + 1 : current_voxel.x) * VOXEL_SIZE;
-                // t = (xx - origin.x) / direction.x;
-
                 record.t = t_max.x;
                 record.normal = vec3(float(-step.x), 0.0, 0.0);
 
                 t_max.x += t_delta.x;
                 current_voxel.x += step.x;
             } else {
-                // float zz = float((step.z > 0) ? current_voxel.z + 1 : current_voxel.z) * VOXEL_SIZE;
-                // t = (zz - origin.z) / direction.z;
-
                 record.t = t_max.z;
                 record.normal = vec3(0.0, 0.0, float(-step.z));
 
@@ -214,18 +204,12 @@ bool voxel_traversal(in ray r, out hit_record record) {
             }
         } else {
             if (t_max.y < t_max.z) {
-                // float yy = float((step.y > 0) ? current_voxel.y + 1 : current_voxel.y) * VOXEL_SIZE;
-                // t = (yy - origin.y) / direction.y;
-
                 record.t = t_max.y;
                 record.normal = vec3(0.0, float(-step.y), 0.0);
 
                 t_max.y += t_delta.y;
                 current_voxel.y += step.y;
             } else {
-                // float zz = float((step.z > 0) ? current_voxel.z + 1 : current_voxel.z) * VOXEL_SIZE;
-                // t = (zz - origin.z) / direction.z;
-
                 record.t = t_max.z;
                 record.normal = vec3(0.0, 0.0, float(-step.z));
 
@@ -242,14 +226,14 @@ bool voxel_traversal(in ray r, out hit_record record) {
         }
 
         i += 1u;
-    } while (i < 30u);
+    } while (i < MAXIMUM_TRAVERSAL_DISTANCE);
 
     return false;
 }
 
 vec3 background(ray r) {
-    float t = 0.5 * (normalize(r.direction).y + 1.0);
-    return mix(vec3(1.0, 1.0, 1.0), vec3(0.5, 0.7, 1.0), t);
+    // float t = 0.5 * (normalize(r.direction).y + 1.0);
+    return vec3(1.0, 1.0, 1.0); // mix(vec3(1.0, 1.0, 1.0), vec3(0.5, 0.7, 1.0), t);
 }
 
 vec3 trace(ray r) {
@@ -259,7 +243,7 @@ vec3 trace(ray r) {
     hit_record record;
 
     int i = 0;
-    while ((i <= maximum_depth) && voxel_traversal(r, record)) {
+    while ((i < MAXIMUM_DEPTH) && voxel_traversal(r, record)) {
 
         ray scattered;
   	    vec3 attenuation;
@@ -272,7 +256,7 @@ vec3 trace(ray r) {
         i += 1;
     }
 
-    if (i == maximum_depth) {
+    if (i == MAXIMUM_DEPTH) {
         return vec3(0.0, 0.0, 0.0);
     } else {
         return color * background(r);
@@ -280,23 +264,28 @@ vec3 trace(ray r) {
 }
 
 void main() {
+
     float scale = tan(radians(camera_fov * 0.5));
+
     vec3 origin = vec3(camera_matrix[3][0], camera_matrix[3][1], camera_matrix[3][2]);
     vec3 direction = normalize((camera_matrix * vec4(uv.x * camera_aspect_ratio * scale, uv.y * scale, -1.0, 0.0)).xyz);
     
     vec3 color = vec3(0.0, 0.0, 0.0);
 
-    for (int i = 0; i < number_of_samples; i++) {
+    for (int i = 0; i < NUMBER_OF_SAMPLES; i++) {
+
         float du = rand() / screen_dimensions.x;
         float dv = rand() / screen_dimensions.y;
-        vec3 aa = vec3(du, dv, 0.0) * antialiasing;
+
+        vec3 aa = vec3(du, dv, 0.0);
 
         ray r = ray(origin, direction + aa);
 
         color += trace(r);
+
     }
 
-    color /= float(number_of_samples);
+    color /= float(NUMBER_OF_SAMPLES);
 
     fColor = vec4(color, 1.0);
 }`;

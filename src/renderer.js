@@ -1,13 +1,19 @@
 import { vec3, mat4 } from '../lib/gl-matrix/index.js';
 import Shader from './shader.js';
 
+import utilities from './core/utilities.js';
+
+const perlin = utilities.new_perlin();
+
 const IS_LITTLE_ENDIAN = new Uint8Array(new Uint32Array([0x12345678]).buffer)[0] === 0x78;
+
 const VOXEL_SIZE = 1.0;
-const VOXEL_CHUNK_SIZE = 8;
-const NUMBER_OF_MATERIALS = 10;
+const VOXEL_CHUNK_SIZE = 64;
+const NUMBER_OF_MATERIALS = 4;
+const MAXIMUM_TRAVERSAL_DISTANCE = 128;
 
 export default {
-    new(context = null) {
+    new(context = null, { numberOfSamples = 6, maximumDepth = 8 } = {}) {
 
         if (context === null) {
             throw Error('You must pass a WebGL2 context to the renderer.');
@@ -18,13 +24,16 @@ export default {
 
         gl.viewport(0, 0, domElement.width, domElement.height);
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
-        gl.enable(gl.DEPTH_TEST);
-        gl.enable(gl.CULL_FACE);
+        gl.disable(gl.DEPTH_TEST);
+        gl.disable(gl.CULL_FACE);
 
-        const shader = Shader.new(gl, {
+        let shader = Shader.new(gl, {
             NUMBER_OF_MATERIALS,
             VOXEL_SIZE: VOXEL_SIZE + '.0',
-            VOXEL_CHUNK_SIZE
+            VOXEL_CHUNK_SIZE,
+            MAXIMUM_TRAVERSAL_DISTANCE: MAXIMUM_TRAVERSAL_DISTANCE + 'u',
+            NUMBER_OF_SAMPLES: numberOfSamples,
+            MAXIMUM_DEPTH: maximumDepth
         });
 
         gl.useProgram(shader.program);
@@ -46,17 +55,26 @@ export default {
                 fuzz: 0.0,
                 refractiveIndex: 0.0,
                 type: 0
+            },
+            {
+                albedo: vec3.fromValues(...utilities.hexToRGBNormalized(0x71aa34)),
+                fuzz: 0.0,
+                refractiveIndex: 0.0,
+                type: 0
+            },
+            {
+                albedo: vec3.fromValues(...utilities.hexToRGBNormalized(0xa05b53)),
+                fuzz: 0.0,
+                refractiveIndex: 0.0,
+                type: 0
+            },
+            {
+                albedo: vec3.fromValues(...utilities.hexToRGBNormalized(0x7d7071)),
+                fuzz: 0.0,
+                refractiveIndex: 0.0,
+                type: 0
             }
         ];
-
-        for (let i = 0; i < NUMBER_OF_MATERIALS - 1; i++) {
-            materials.push({
-                albedo: vec3.fromValues(0.5 + (Math.random() * 0.5), 0.5 + (Math.random() * 0.5), 0.5 + (Math.random() * 0.5)),
-                fuzz: Math.random(),
-                refractiveIndex: 1.33 + (Math.random() * 1.33),
-                type: (Math.random() > 0.95) ? 2 : ((Math.random() > 0.5) ? 0 : 1),
-            });
-        }
 
         for (let i = 0; i < NUMBER_OF_MATERIALS; i++) {
 
@@ -88,9 +106,19 @@ export default {
 
         let voxels = new Uint8Array(VOXEL_CHUNK_SIZE * VOXEL_CHUNK_SIZE * VOXEL_CHUNK_SIZE);
         for (let k = 0; k < VOXEL_CHUNK_SIZE; k++) {
-            for (let j = 0; j < VOXEL_CHUNK_SIZE; j++) {
+            for (let j = VOXEL_CHUNK_SIZE; j >= 0; j--) {
                 for (let i = 0; i < VOXEL_CHUNK_SIZE; i++) {
-                    voxels[i + j * VOXEL_CHUNK_SIZE + k * VOXEL_CHUNK_SIZE * VOXEL_CHUNK_SIZE] = (Math.random() < 0.8) ? 0 : Math.floor(1 + Math.random() * (NUMBER_OF_MATERIALS - 1));
+
+                    const value = perlin.generateOctave(i / VOXEL_CHUNK_SIZE, j / VOXEL_CHUNK_SIZE, k / VOXEL_CHUNK_SIZE, 3, 4);
+
+                    const att = 1.0 - (j / VOXEL_CHUNK_SIZE);
+                    let material_id = 1 + (Math.floor(value * (NUMBER_OF_MATERIALS)));
+
+                    if (voxels[i + (j + 1) * VOXEL_CHUNK_SIZE + k * VOXEL_CHUNK_SIZE * VOXEL_CHUNK_SIZE] === 0) {
+                        material_id = 1;
+                    }
+
+                    voxels[i + j * VOXEL_CHUNK_SIZE + k * VOXEL_CHUNK_SIZE * VOXEL_CHUNK_SIZE] = (value > att) ? 0 : material_id;
                 }
             }
         }
@@ -111,14 +139,28 @@ export default {
             gl.TEXTURE_3D,              // target
             0,                          // level
             gl.R8UI,                    // internalformat
-            VOXEL_CHUNK_SIZE,                       // width
-            VOXEL_CHUNK_SIZE,                       // height
-            VOXEL_CHUNK_SIZE,                       // depth
+            VOXEL_CHUNK_SIZE,           // width
+            VOXEL_CHUNK_SIZE,           // height
+            VOXEL_CHUNK_SIZE,           // depth
             0,                          // border
             gl.RED_INTEGER,             // format
             gl.UNSIGNED_BYTE,           // type
             voxels                      // pixel
         );
+
+        // set up render targets:
+
+        // const target1 = gl.createTexture();
+        // gl.bindTexture(gl.TEXTURE_2D, target1);
+        // gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, domElement.width, domElement.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+
+        // const target2 = gl.createTexture();
+        // gl.bindTexture(gl.TEXTURE_2D, target2);
+        // gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, domElement.width, domElement.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+
+        // const frameBuffer = gl.createFramebuffer();
+        // gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
+        // gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, target1, 0);
 
         const renderer = {
 
@@ -132,11 +174,20 @@ export default {
                 gl.clearColor(1.0, 1.0, 1.0, 1.0);
             },
 
-            draw(delta, camera, {
-                numberOfSamples = 25,
-                maximumDepth = 25,
-                antialiasing = true
-            } = {}) {
+            setParams({ numberOfSamples = 6, maximumDepth = 8 } = {}) {
+                shader = Shader.new(gl, {
+                    NUMBER_OF_MATERIALS,
+                    VOXEL_SIZE: VOXEL_SIZE + '.0',
+                    VOXEL_CHUNK_SIZE,
+                    MAXIMUM_TRAVERSAL_DISTANCE: MAXIMUM_TRAVERSAL_DISTANCE + 'u',
+                    NUMBER_OF_SAMPLES: numberOfSamples,
+                    MAXIMUM_DEPTH: maximumDepth
+                });
+
+                gl.useProgram(shader.program);
+            },
+
+            draw(delta, camera) {
 
                 totalTime += delta;
 
@@ -151,11 +202,6 @@ export default {
 
                 gl.uniform1f(shader.uniformLocations.cameraFov, camera.yfov);
                 gl.uniform1f(shader.uniformLocations.cameraAspectRatio, camera.aspectRatio);
-
-
-                gl.uniform1i(shader.uniformLocations.numberOfSamples, numberOfSamples);
-                gl.uniform1i(shader.uniformLocations.maximumDepth, maximumDepth);
-                gl.uniform1f(shader.uniformLocations.antialiasing, antialiasing ? 1.0 : 0.0);
 
                 // draw fullscreen quad:
                 gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
