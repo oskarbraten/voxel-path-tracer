@@ -3,13 +3,12 @@ const glsl = x => x.raw[0];
 export default glsl`#version 300 es
 
 precision highp float;
-precision highp int;
 precision highp usampler3D;
 
 __DEFINES__
 
 in vec2 uv;
-out vec4 id;
+out uint id;
 
 uniform mat4 camera_matrix;
 uniform float camera_fov;
@@ -71,23 +70,23 @@ int voxel_traversal(in ray r) {
     do {
         if (t_max.x < t_max.y) {
             if (t_max.x < t_max.z) {
-                normal_id = 1; // * -step.x;
+                normal_id = 1 * -step.x;
                 t_max.x += t_delta.x;
                 current_voxel.x += step.x;
             } else {
-                normal_id = 1; // * -step.z;
+                normal_id = 3 * -step.z;
 
                 t_max.z += t_delta.z;
                 current_voxel.z += step.z;
             }
         } else {
             if (t_max.y < t_max.z) {
-                normal_id = 1; // * -step.y;
+                normal_id = 2 * -step.y;
 
                 t_max.y += t_delta.y;
                 current_voxel.y += step.y;
             } else {
-                normal_id = 1; // * -step.z;
+                normal_id = 3 * -step.z;
 
                 t_max.z += t_delta.z;
                 current_voxel.z += step.z;
@@ -112,6 +111,6 @@ void main() {
     vec3 direction = normalize((camera_matrix * vec4(uv.x * camera_aspect_ratio * scale, uv.y * scale, -1.0, 0.0)).xyz);
     
     ray r = ray(origin, direction);
-    id = vec4(float(voxel_traversal(r)), 0.0, 0.0, 1.0);
+    id = 3u + uint(voxel_traversal(r));
 
 }`;

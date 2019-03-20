@@ -17,6 +17,8 @@ export default {
                 cameraMatrix: context.getUniformLocation(program, 'camera_matrix'),
                 cameraFov: context.getUniformLocation(program, 'camera_fov'),
                 cameraAspectRatio: context.getUniformLocation(program, 'camera_aspect_ratio'),
+
+                voxelData: context.getUniformLocation(program, 'voxel_data')
             }
         };
     }

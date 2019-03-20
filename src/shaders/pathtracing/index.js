@@ -24,7 +24,9 @@ export default {
                 seed: context.getUniformLocation(program, 'seed'),
 
                 numberOfSamples: context.getUniformLocation(program, 'number_of_samples'),
-                maximumDepth: context.getUniformLocation(program, 'maximum_depth')
+                maximumDepth: context.getUniformLocation(program, 'maximum_depth'),
+
+                voxelData: context.getUniformLocation(program, 'voxel_data')
             }
         };
     }

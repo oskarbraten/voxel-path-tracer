@@ -3,10 +3,11 @@ const glsl = x => x.raw[0];
 export default glsl`#version 300 es
 
 precision highp float;
+precision highp usampler2D;
 
 #define SIGMA 10.0
-#define BSIGMA 0.8
-#define MSIZE 4
+#define BSIGMA 0.3
+#define MSIZE 15
 
 __DEFINES__
 
@@ -15,7 +16,7 @@ __DEFINES__
 //const int kSize = (MSIZE - 1) / 2;
 
 float normpdf(in float x, in float sigma) {
-	return 0.39894*exp(-0.5*x*x/(sigma*sigma))/sigma;
+	return 0.39894*exp(-0.5*x*x / (sigma*sigma)) / sigma;
 }
 
 float normpdf3(in vec3 v, in float sigma) {
@@ -25,12 +26,15 @@ float normpdf3(in vec3 v, in float sigma) {
 in vec2 uv;
 out vec4 fColor;
 
-uniform sampler2D frame;
+uniform sampler2D trace_pass;
+uniform usampler2D normal_pass;
 
 void main() {
     #ifdef ENABLE_FILTER
-    vec2 resolution = vec2(textureSize(frame, 0));
-    vec3 c = texture(frame, uv).rgb;
+    vec2 resolution = vec2(textureSize(trace_pass, 0));
+
+    vec3 c = texture(trace_pass, uv).rgb;
+    uint normal_id = texture(normal_pass, uv).r;
 
     const int kSize = (MSIZE-1)/2;
 	float kernel[MSIZE];
@@ -43,14 +47,22 @@ void main() {
     float z = 0.0;
     
     vec3 cc;
+    uint nn_id;
     float factor;
     float b_z = 1.0 / normpdf(0.0, BSIGMA);
 
     for (int i = -kSize; i <= kSize; ++i) {
         for (int j = -kSize; j <= kSize; ++j) {
 
-            cc = texture(frame, (gl_FragCoord.xy + vec2(float(i), float(j))) / resolution.xy).rgb;
+            cc = texture(trace_pass, (gl_FragCoord.xy + vec2(float(i), float(j))) / resolution.xy).rgb;
             factor = normpdf3(cc - c, BSIGMA) * b_z * kernel[kSize + j] * kernel[kSize + i];
+
+            nn_id = texture(normal_pass, (gl_FragCoord.xy + vec2(float(i), float(j))) / resolution.xy).r;
+            
+            if (nn_id != normal_id) {
+                factor = 0.0;
+            }
+
             z += factor;
             color += factor * cc;
 
@@ -59,6 +71,6 @@ void main() {
 
     fColor = vec4(color / z, 1.0);
     #else
-    fColor = texture(frame, uv);
+    fColor = texture(trace_pass, uv);
     #endif
 }`;

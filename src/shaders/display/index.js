@@ -15,7 +15,8 @@ export default {
         return {
             program,
             uniformLocations: {
-                frameSampler: context.getUniformLocation(program, 'frame')
+                tracePass: context.getUniformLocation(program, 'trace_pass'),
+                normalPass: context.getUniformLocation(program, 'normal_pass')
             }
         };
     }
