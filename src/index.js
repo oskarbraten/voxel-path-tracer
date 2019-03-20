@@ -6,7 +6,7 @@ import Node from './core/node.js';
 import Camera from './core/camera.js';
 
 let parameters = {
-    numberOfSamples: 3,
+    numberOfSamples: 2,
     maximumDepth: 5,
     enableFilter: true,
     update: () => {
