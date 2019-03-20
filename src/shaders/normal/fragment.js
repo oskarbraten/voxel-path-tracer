@@ -8,7 +8,8 @@ precision highp usampler3D;
 __DEFINES__
 
 in vec2 uv;
-out uint id;
+layout(location = 0) out uvec2 id; // x = material-id, y = normal-id
+layout(location = 1) out int offset;
 
 uniform mat4 camera_matrix;
 uniform float camera_fov;
@@ -28,7 +29,7 @@ vec3 point_at(ray r, float t) {
 // Using a modified version of:
 // A Fast Voxel Traversal Algorithm for Ray Tracing, John Amanatides & Andrew Woo. 1987.
 
-int voxel_traversal(in ray r) {
+uvec2 voxel_traversal(in ray r) {
 
     vec3 origin = r.origin;
     vec3 direction = r.direction;
@@ -65,16 +66,23 @@ int voxel_traversal(in ray r) {
     vec3 t_delta = VOXEL_SIZE / direction * vec3(step);
 
     uint i = 0u;
+
     int normal_id = 0;
+    uint material_id = 0u;
+    
+    // TODO: take offset wrt. camera position.
 
     do {
         if (t_max.x < t_max.y) {
             if (t_max.x < t_max.z) {
                 normal_id = 1 * -step.x;
+                offset = current_voxel.x;
+
                 t_max.x += t_delta.x;
                 current_voxel.x += step.x;
             } else {
                 normal_id = 3 * -step.z;
+                offset = current_voxel.z;
 
                 t_max.z += t_delta.z;
                 current_voxel.z += step.z;
@@ -82,25 +90,28 @@ int voxel_traversal(in ray r) {
         } else {
             if (t_max.y < t_max.z) {
                 normal_id = 2 * -step.y;
+                offset = current_voxel.y;
 
                 t_max.y += t_delta.y;
                 current_voxel.y += step.y;
             } else {
                 normal_id = 3 * -step.z;
+                offset = current_voxel.z;
 
                 t_max.z += t_delta.z;
                 current_voxel.z += step.z;
             }
         }
 
-        if (texelFetch(voxel_data, current_voxel, 0).r != 0u) {
-            return normal_id;
+        material_id = texelFetch(voxel_data, current_voxel, 0).r;
+        if (material_id != 0u) {
+            return uvec2(material_id, 3u + uint(normal_id));
         }
 
         i += 1u;
     } while (i < MAXIMUM_TRAVERSAL_DISTANCE);
 
-    return 0;
+    return uvec2(0u, 0u);
 }
 
 void main() {
@@ -111,6 +122,6 @@ void main() {
     vec3 direction = normalize((camera_matrix * vec4(uv.x * camera_aspect_ratio * scale, uv.y * scale, -1.0, 0.0)).xyz);
     
     ray r = ray(origin, direction);
-    id = 3u + uint(voxel_traversal(r));
+    id = voxel_traversal(r);
 
 }`;

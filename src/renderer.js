@@ -62,23 +62,23 @@ export default {
 
         gl.useProgram(normalShader.program);
 
-        // set up render target texture:
-        const normalTexture = gl.createTexture();
+        // set up render target texture for material-id and normal-id:
+        const materialNormalTexture = gl.createTexture();
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, normalTexture);
+        gl.bindTexture(gl.TEXTURE_2D, materialNormalTexture);
 
         // initialize texture:
-        gl.texImage2D(
-            gl.TEXTURE_2D,              // target
-            0,                          // level
-            gl.R8UI,                    // internalformat
-            domElement.width,           // width
-            domElement.height,          // height
-            0,                          // border
-            gl.RED_INTEGER,             // format
-            gl.UNSIGNED_BYTE,           // type
-            null                        // pixel
-        );
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG8UI, domElement.width, domElement.height, 0, gl.RG_INTEGER, gl.UNSIGNED_BYTE, null);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+
+        // set up render target texture for plane-id
+        const planeTexture = gl.createTexture();
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, planeTexture);
+
+        // initialize texture:
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32I, domElement.width, domElement.height, 0, gl.RED_INTEGER, gl.INT, null);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
 
@@ -157,8 +157,11 @@ export default {
                 gl.bindTexture(gl.TEXTURE_2D, pathTracingTexture);
                 gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, domElement.width, domElement.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
 
-                gl.bindTexture(gl.TEXTURE_2D, normalTexture);
-                gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8UI, domElement.width, domElement.height, 0, gl.RED_INTEGER, gl.UNSIGNED_BYTE, null);
+                gl.bindTexture(gl.TEXTURE_2D, materialNormalTexture);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG8UI, domElement.width, domElement.height, 0, gl.RG_INTEGER, gl.UNSIGNED_BYTE, null);
+
+                gl.bindTexture(gl.TEXTURE_2D, planeTexture);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32I, domElement.width, domElement.height, 0, gl.RED_INTEGER, gl.INT, null);
             },
 
             setParams({ numberOfSamples = 6, maximumDepth = 8, enableFilter = true } = {}) {
@@ -207,7 +210,11 @@ export default {
                 gl.uniform1f(normalShader.uniformLocations.cameraFov, camera.yfov);
                 gl.uniform1f(normalShader.uniformLocations.cameraAspectRatio, camera.aspectRatio);
 
-                gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, normalTexture, 0);
+                gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, materialNormalTexture, 0);
+                gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, planeTexture, 0);
+
+                gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
+
                 gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
                 /**
@@ -221,8 +228,12 @@ export default {
                 gl.uniform1i(displayShader.uniformLocations.tracePass, 0);
 
                 gl.activeTexture(gl.TEXTURE1);
-                gl.bindTexture(gl.TEXTURE_2D, normalTexture);
-                gl.uniform1i(displayShader.uniformLocations.normalPass, 1);
+                gl.bindTexture(gl.TEXTURE_2D, materialNormalTexture);
+                gl.uniform1i(displayShader.uniformLocations.normalPassMaterialNormalSampler, 1);
+
+                gl.activeTexture(gl.TEXTURE2);
+                gl.bindTexture(gl.TEXTURE_2D, planeTexture);
+                gl.uniform1i(displayShader.uniformLocations.normalPassPlaneSampler, 2);
 
                 gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
             }
