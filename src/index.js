@@ -2,17 +2,34 @@ import * as dat from '../lib/dat.gui.module.js';
 import CameraController from './controls/CameraController.js';
 
 import Renderer from './renderer.js';
-import World from './core/world.js';
 import Node from './core/node.js';
 import Camera from './core/camera.js';
-import { vec3 } from '../lib/gl-matrix/index.js';
+
+let parameters = {
+    numberOfSamples: 3,
+    maximumDepth: 5,
+    enableFilter: true,
+    update: () => {
+        renderer.setParams({
+            numberOfSamples: parameters.numberOfSamples,
+            maximumDepth: parameters.maximumDepth,
+            enableFilter: parameters.enableFilter
+        });
+    }
+};
+
+const gui = new dat.GUI();
+
+gui.add(parameters, 'numberOfSamples', 1, 128, 1).name("Num. Samples");
+gui.add(parameters, 'maximumDepth', 1, 64, 1).name("Maximum Depth");
+gui.add(parameters, 'enableFilter').name("Enable filter");
+gui.add(parameters, 'update').name("Update shader");
 
 const gl = document.createElement('canvas').getContext('webgl2');
-const renderer = Renderer.new(gl);
+const renderer = Renderer.new(gl, parameters);
 
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
-
 
 const cameraNode = Node.new();
 
@@ -58,6 +75,8 @@ let move = {
     speed: 0.004
 };
 
+gui.add(move, 'speed', 0.001, 0.01).name("Movement speed");
+
 
 window.addEventListener('keydown', (e) => {
     e.preventDefault();
@@ -84,24 +103,6 @@ window.addEventListener('keyup', (e) => {
         move.right = false;
     }
 });
-
-let parameters = {
-    numberOfSamples: 6,
-    maximumDepth: 8,
-    update: () => {
-        renderer.setParams({
-            numberOfSamples: parameters.numberOfSamples,
-            maximumDepth: parameters.maximumDepth
-        });
-    }
-};
-
-const gui = new dat.GUI();
-
-gui.add(parameters, 'numberOfSamples', 1, 128, 1).name("Num. Samples");
-gui.add(parameters, 'maximumDepth', 1, 64, 1).name("Maximum Depth");
-gui.add(parameters, 'update').name("Update shader");
-gui.add(move, 'speed', 0.001, 0.01).name("Movement speed");
 
 let meter = new FPSMeter();
 

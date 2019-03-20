@@ -1,5 +1,8 @@
 import { vec3, mat4 } from '../lib/gl-matrix/index.js';
-import Shader from './shader.js';
+
+import PathTracingShader from './shaders/pathtracing/index.js';
+import NormalShader from './shaders/normal/index.js';
+import DisplayShader from './shaders/display/index.js';
 
 import utilities from './core/utilities.js';
 
@@ -13,7 +16,7 @@ const NUMBER_OF_MATERIALS = 4;
 const MAXIMUM_TRAVERSAL_DISTANCE = 128;
 
 export default {
-    new(context = null, { numberOfSamples = 6, maximumDepth = 8 } = {}) {
+    new(context = null, { numberOfSamples = 6, maximumDepth = 8, enableFilter = true } = {}) {
 
         if (context === null) {
             throw Error('You must pass a WebGL2 context to the renderer.');
@@ -27,7 +30,44 @@ export default {
         gl.disable(gl.DEPTH_TEST);
         gl.disable(gl.CULL_FACE);
 
-        let shader = Shader.new(gl, {
+        let normalShader = NormalShader.new(gl, {
+            MAXIMUM_TRAVERSAL_DISTANCE: MAXIMUM_TRAVERSAL_DISTANCE + 'u',
+            VOXEL_SIZE: VOXEL_SIZE + '.0'
+        });
+
+        const normalTexture = gl.createTexture();
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, normalTexture);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+
+        gl.texImage2D(
+            gl.TEXTURE_2D,              // target
+            0,                          // level
+            gl.RGBA,                    // internalformat
+            domElement.width,           // width
+            domElement.height,          // height
+            0,                          // border
+            gl.RGBA,                    // format
+            gl.UNSIGNED_BYTE,           // type
+            null                        // pixel
+        );
+
+        const normalFrame = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, normalFrame);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, domElement.width, domElement.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+
+        const normalFrameBuffer = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, normalFrameBuffer);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, normalTexture, 0);
+
+        let displayShader = DisplayShader.new(gl, {
+            ENABLE_FILTER: enableFilter
+        });
+
+        let pathTracingShader = PathTracingShader.new(gl, {
             NUMBER_OF_MATERIALS,
             VOXEL_SIZE: VOXEL_SIZE + '.0',
             VOXEL_CHUNK_SIZE,
@@ -36,7 +76,7 @@ export default {
             MAXIMUM_DEPTH: maximumDepth
         });
 
-        gl.useProgram(shader.program);
+        gl.useProgram(pathTracingShader.program);
 
         let totalTime = 0;
 
@@ -102,7 +142,7 @@ export default {
         gl.bufferData(gl.UNIFORM_BUFFER, materialBuffer, gl.DYNAMIC_DRAW);
 
         // bind block:
-        gl.uniformBlockBinding(shader.program, gl.getUniformBlockIndex(shader.program, 'Materials'), 0);
+        gl.uniformBlockBinding(pathTracingShader.program, gl.getUniformBlockIndex(pathTracingShader.program, 'Materials'), 0);
 
         let voxels = new Uint8Array(VOXEL_CHUNK_SIZE * VOXEL_CHUNK_SIZE * VOXEL_CHUNK_SIZE);
         for (let k = 0; k < VOXEL_CHUNK_SIZE; k++) {
@@ -149,18 +189,15 @@ export default {
         );
 
         // set up render targets:
+        const frameTexture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, frameTexture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, domElement.width, domElement.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
 
-        // const target1 = gl.createTexture();
-        // gl.bindTexture(gl.TEXTURE_2D, target1);
-        // gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, domElement.width, domElement.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-
-        // const target2 = gl.createTexture();
-        // gl.bindTexture(gl.TEXTURE_2D, target2);
-        // gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, domElement.width, domElement.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-
-        // const frameBuffer = gl.createFramebuffer();
-        // gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
-        // gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, target1, 0);
+        const frameBuffer = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, frameTexture, 0);
 
         const renderer = {
 
@@ -170,12 +207,18 @@ export default {
             setSize(width, height) {
                 domElement.width = width;
                 domElement.height = height;
+                gl.bindTexture(gl.TEXTURE_2D, frameTexture);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, domElement.width, domElement.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
                 gl.viewport(0, 0, domElement.width, domElement.height);
                 gl.clearColor(1.0, 1.0, 1.0, 1.0);
             },
 
-            setParams({ numberOfSamples = 6, maximumDepth = 8 } = {}) {
-                shader = Shader.new(gl, {
+            setParams({ numberOfSamples = 6, maximumDepth = 8, enableFilter = true } = {}) {
+                displayShader = DisplayShader.new(gl, {
+                    ENABLE_FILTER: enableFilter
+                });
+
+                pathTracingShader = PathTracingShader.new(gl, {
                     NUMBER_OF_MATERIALS,
                     VOXEL_SIZE: VOXEL_SIZE + '.0',
                     VOXEL_CHUNK_SIZE,
@@ -183,27 +226,50 @@ export default {
                     NUMBER_OF_SAMPLES: numberOfSamples,
                     MAXIMUM_DEPTH: maximumDepth
                 });
-
-                gl.useProgram(shader.program);
             },
 
             draw(delta, camera) {
 
                 totalTime += delta;
 
-                gl.uniform2f(shader.uniformLocations.screenDimensions, domElement.width, domElement.height);
-                gl.uniform1f(shader.uniformLocations.seed, Math.random());
-                gl.uniform1f(shader.uniformLocations.deltaTime, delta);
-                gl.uniform1f(shader.uniformLocations.totalTime, totalTime);
+                /**
+                 * Path tracing phase:
+                 */
+                gl.useProgram(pathTracingShader.program);
+                gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
+
+                gl.uniform2f(pathTracingShader.uniformLocations.screenDimensions, domElement.width, domElement.height);
+                gl.uniform1f(pathTracingShader.uniformLocations.seed, Math.random());
+                gl.uniform1f(pathTracingShader.uniformLocations.deltaTime, delta);
+                gl.uniform1f(pathTracingShader.uniformLocations.totalTime, totalTime);
 
                 const viewMatrix = mat4.invert(mat4.create(), camera.node.worldMatrix);
-                gl.uniformMatrix4fv(shader.uniformLocations.viewMatrix, false, viewMatrix);
-                gl.uniformMatrix4fv(shader.uniformLocations.cameraMatrix, false, camera.node.worldMatrix);
+                gl.uniformMatrix4fv(pathTracingShader.uniformLocations.viewMatrix, false, viewMatrix);
+                gl.uniformMatrix4fv(pathTracingShader.uniformLocations.cameraMatrix, false, camera.node.worldMatrix);
 
-                gl.uniform1f(shader.uniformLocations.cameraFov, camera.yfov);
-                gl.uniform1f(shader.uniformLocations.cameraAspectRatio, camera.aspectRatio);
+                gl.uniform1f(pathTracingShader.uniformLocations.cameraFov, camera.yfov);
+                gl.uniform1f(pathTracingShader.uniformLocations.cameraAspectRatio, camera.aspectRatio);
 
-                // draw fullscreen quad:
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+                /**
+                 * Normals phase:
+                 */
+                gl.useProgram(normalShader.program);
+                gl.bindFramebuffer(gl.FRAMEBUFFER, normalFrameBuffer);
+
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+                /**
+                 * Display phase:
+                 */
+                gl.useProgram(displayShader.program);
+                gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, frameTexture);
+                gl.uniform1i(displayShader.uniformLocations.frameSampler, 0);
+
                 gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
             }
         };

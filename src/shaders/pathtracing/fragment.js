@@ -8,8 +8,6 @@ precision highp usampler3D;
 
 __DEFINES__
 
-const float FLOAT_INFINITY = 1.0 / 0.0;
-
 in vec2 uv;
 out vec4 fColor;
 
@@ -23,7 +21,6 @@ uniform float delta_time;
 uniform float total_time;
 uniform float seed;
 
-uniform sampler2D previous_frame;
 uniform usampler3D voxel_data;
 
 struct material {
@@ -42,6 +39,7 @@ float rand_seed = 1.0;
 float rand() {
     vec2 seeded_uv = vec2(uv.s + rand_seed, uv.t + rand_seed);
     rand_seed += 0.01; // seed;
+    // rand_seed += seed;
     return fract(sin(dot(seeded_uv.st, vec2(12.9898,78.233))) * 43758.5453);
 }
 
