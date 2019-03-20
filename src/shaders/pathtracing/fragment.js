@@ -270,14 +270,15 @@ void main() {
     
     vec3 color = vec3(0.0, 0.0, 0.0);
 
+
     for (int i = 0; i < NUMBER_OF_SAMPLES; i++) {
 
-        float du = rand() / screen_dimensions.x;
-        float dv = rand() / screen_dimensions.y;
+        // float du = rand() / screen_dimensions.x;
+        // float dv = rand() / screen_dimensions.y;
 
-        vec3 aa = vec3(du, dv, 0.0);
+        // vec3 aa = vec3(du, dv, 0.0);
 
-        ray r = ray(origin, direction + aa);
+        ray r = ray(origin, direction);
 
         color += trace(r);
 
