@@ -240,11 +240,11 @@ vec3 trace(ray r) {
 
     hit_record record;
 
+    ray scattered;
+  	vec3 attenuation;
+
     int i = 0;
     while ((i < MAXIMUM_DEPTH) && voxel_traversal(r, record)) {
-
-        ray scattered;
-  	    vec3 attenuation;
 
         scatter(r, record, attenuation, scattered);
         
@@ -275,7 +275,6 @@ void main() {
 
         // float du = rand() / screen_dimensions.x;
         // float dv = rand() / screen_dimensions.y;
-
         // vec3 aa = vec3(du, dv, 0.0);
 
         ray r = ray(origin, direction);
@@ -286,5 +285,5 @@ void main() {
 
     color /= float(NUMBER_OF_SAMPLES);
 
-    fColor = vec4(color, 1.0);
+    fColor = vec4(sqrt(color), 1.0);
 }`;
