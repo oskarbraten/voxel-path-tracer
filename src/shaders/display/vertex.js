@@ -3,23 +3,11 @@ const glsl = x => x.raw[0];
 export default glsl`#version 300 es
 precision highp float;
 
-const vec2 data[4] = vec2[](
-    vec2(-1.0,  1.0),
-    vec2(-1.0, -1.0),
-    vec2( 1.0,  1.0),
-    vec2( 1.0, -1.0)
-);
-
-const vec2 uv_data[4] = vec2[](
-    vec2(0.0, 1.0),
-    vec2(0.0, 0.0),
-    vec2(1.0, 1.0),
-    vec2(1.0, 0.0)
-);
-
+layout(location = 0) in vec2 in_data;
+layout(location = 1) in vec2 in_uv;
 out vec2 uv;
 
 void main() {
-    gl_Position = vec4(data[gl_VertexID], 0.0, 1.0);
-    uv = uv_data[gl_VertexID];
+    gl_Position = vec4(in_data, 0.0, 1.0);
+    uv = in_uv;
 }`;

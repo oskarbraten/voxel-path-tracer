@@ -23,6 +23,38 @@ export default {
         gl.disable(gl.CULL_FACE);
 
         /**
+         * Upload fullscreen quad:
+        */
+
+        const dataBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, dataBuffer);
+
+        const data = new Float32Array([
+            // set #1:
+            -1.0, 1.0,
+            -1.0, -1.0,
+            1.0, 1.0,
+            1.0, -1.0,
+
+            // set #2:
+            0.0, 1.0,
+            0.0, 0.0,
+            1.0, 1.0,
+            1.0, 0.0
+        ]);
+
+        gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+
+        // set #1:
+        gl.vertexAttribPointer(0, 2, gl.FLOAT, 0, 0, 0);
+        gl.enableVertexAttribArray(0);
+
+        // set #2:
+        gl.vertexAttribPointer(1, 2, gl.FLOAT, 0, 0, 8 * 4); // 8 components * 4 bytes = 32 bytes
+        gl.enableVertexAttribArray(1);
+
+
+        /**
          * Framebuffer for offscreen rendering:
          */
         const targetFrameBuffer = gl.createFramebuffer();
