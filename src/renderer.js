@@ -35,7 +35,7 @@ export default {
         let pathTracingShader = PathTracingShader.new(gl, {
             NUMBER_OF_MATERIALS,
             VOXEL_SIZE: VOXEL_SIZE + '.0',
-            MAXIMUM_TRAVERSAL_DISTANCE: MAXIMUM_TRAVERSAL_DISTANCE + 'u',
+            MAXIMUM_TRAVERSAL_DISTANCE,
             NUMBER_OF_SAMPLES: numberOfSamples,
             MAXIMUM_DEPTH: maximumDepth
         });
@@ -56,7 +56,7 @@ export default {
          * NORMAL PHASE SETUP:
          */
         let normalShader = NormalShader.new(gl, {
-            MAXIMUM_TRAVERSAL_DISTANCE: MAXIMUM_TRAVERSAL_DISTANCE + 'u',
+            MAXIMUM_TRAVERSAL_DISTANCE,
             VOXEL_SIZE: VOXEL_SIZE + '.0'
         });
 
@@ -172,7 +172,7 @@ export default {
                 pathTracingShader = PathTracingShader.new(gl, {
                     NUMBER_OF_MATERIALS,
                     VOXEL_SIZE: VOXEL_SIZE + '.0',
-                    MAXIMUM_TRAVERSAL_DISTANCE: MAXIMUM_TRAVERSAL_DISTANCE + 'u',
+                    MAXIMUM_TRAVERSAL_DISTANCE,
                     NUMBER_OF_SAMPLES: numberOfSamples,
                     MAXIMUM_DEPTH: maximumDepth
                 });

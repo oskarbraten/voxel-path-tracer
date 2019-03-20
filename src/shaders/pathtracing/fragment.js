@@ -167,37 +167,27 @@ bool voxel_traversal(in ray r, out hit_record record) {
     vec3 t_max = (next_boundary - origin) / direction; // we will move along the axis with the smallest value
     vec3 t_delta = VOXEL_SIZE / direction * vec3(step);
 
-    uint i = 0u;
+    int i = 0;
     
     do {
-        if (t_max.x < t_max.y) {
-            if (t_max.x < t_max.z) {
-                record.t = t_max.x;
-                record.normal = vec3(float(-step.x), 0.0, 0.0);
+        if (t_max.x < t_max.y && t_max.x < t_max.z) {
+            record.t = t_max.x;
+            record.normal = vec3(float(-step.x), 0.0, 0.0);
 
-                t_max.x += t_delta.x;
-                current_voxel.x += step.x;
-            } else {
-                record.t = t_max.z;
-                record.normal = vec3(0.0, 0.0, float(-step.z));
+            t_max.x += t_delta.x;
+            current_voxel.x += step.x;
+        } else if (t_max.y < t_max.z) {
+            record.t = t_max.y;
+            record.normal = vec3(0.0, float(-step.y), 0.0);
 
-                t_max.z += t_delta.z;
-                current_voxel.z += step.z;
-            }
+            t_max.y += t_delta.y;
+            current_voxel.y += step.y;
         } else {
-            if (t_max.y < t_max.z) {
-                record.t = t_max.y;
-                record.normal = vec3(0.0, float(-step.y), 0.0);
+            record.t = t_max.z;
+            record.normal = vec3(0.0, 0.0, float(-step.z));
 
-                t_max.y += t_delta.y;
-                current_voxel.y += step.y;
-            } else {
-                record.t = t_max.z;
-                record.normal = vec3(0.0, 0.0, float(-step.z));
-
-                t_max.z += t_delta.z;
-                current_voxel.z += step.z;
-            }
+            t_max.z += t_delta.z;
+            current_voxel.z += step.z;
         }
 
         record.id = texelFetch(voxel_data, current_voxel, 0).r;
@@ -207,7 +197,7 @@ bool voxel_traversal(in ray r, out hit_record record) {
             return true;
         }
 
-        i += 1u;
+        i += 1;
     } while (i < MAXIMUM_TRAVERSAL_DISTANCE);
 
     return false;

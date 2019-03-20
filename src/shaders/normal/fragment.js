@@ -65,7 +65,7 @@ uvec2 voxel_traversal(in ray r) {
     vec3 t_max = (next_boundary - origin) / direction; // we will move along the axis with the smallest value
     vec3 t_delta = VOXEL_SIZE / direction * vec3(step);
 
-    uint i = 0u;
+    int i = 0;
 
     int normal_id = 0;
     uint material_id = 0u;
@@ -108,7 +108,7 @@ uvec2 voxel_traversal(in ray r) {
             return uvec2(material_id, 3u + uint(normal_id));
         }
 
-        i += 1u;
+        i += 1;
     } while (i < MAXIMUM_TRAVERSAL_DISTANCE);
 
     return uvec2(0u, 0u);
