@@ -143,8 +143,6 @@ bool scatter(ray r, in hit_record record, out vec3 attenuation, out ray scattere
     }
 }
 
-// TODO: investigate divergence..
-
 // Using a modified version of:
 // A Fast Voxel Traversal Algorithm for Ray Tracing, John Amanatides & Andrew Woo. 1987.
 bool voxel_traversal(in ray r, out hit_record record) {
@@ -184,7 +182,7 @@ bool voxel_traversal(in ray r, out hit_record record) {
     vec3 t_delta = VOXEL_SIZE / direction * vec3(step);
 
     uint i = 0u;
-
+    
     do {
         if (t_max.x < t_max.y) {
             if (t_max.x < t_max.z) {
@@ -230,8 +228,8 @@ bool voxel_traversal(in ray r, out hit_record record) {
 }
 
 vec3 background(ray r) {
-    // float t = 0.5 * (normalize(r.direction).y + 1.0);
-    return vec3(1.0, 1.0, 1.0); // mix(vec3(1.0, 1.0, 1.0), vec3(0.5, 0.7, 1.0), t);
+    float t = clamp(0.5 * (normalize(r.direction).y + 1.0), 0.0, 1.0);
+    return mix(vec3(1.0, 1.0, 1.0), vec3(0.5, 0.7, 1.0), t);
 }
 
 vec3 trace(ray r) {
