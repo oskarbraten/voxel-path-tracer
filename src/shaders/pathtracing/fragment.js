@@ -152,25 +152,11 @@ bool voxel_traversal(in ray r, out hit_record record) {
 
     ivec3 current_voxel = ivec3(floor(origin / VOXEL_SIZE));
 
-    ivec3 step;
-
-    if (direction.x > 0.0) {
-        step.x = 1;
-    } else {
-        step.x = -1;
-    }
-
-    if (direction.y > 0.0) {
-        step.y = 1;
-    } else {
-        step.y = -1;
-    }
-
-    if (direction.z > 0.0) {
-        step.z = 1;
-    } else {
-        step.z = -1;
-    }
+    ivec3 step = ivec3(
+        (direction.x > 0.0) ? 1 : -1,
+        (direction.y > 0.0) ? 1 : -1,
+        (direction.z > 0.0) ? 1 : -1
+    );
 
     vec3 next_boundary = vec3(
         float((step.x > 0) ? current_voxel.x + 1 : current_voxel.x) * VOXEL_SIZE,
