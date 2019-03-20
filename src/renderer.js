@@ -2,7 +2,7 @@ import { NUMBER_OF_MATERIALS, MATERIAL_ARRAY_BUFFER, generate } from './world/ge
 
 import PathTracingShader from './shaders/pathtracing/index.js';
 import NormalShader from './shaders/normal/index.js';
-import DisplayShader from './shaders/display/index.js';
+import FilterShader from './shaders/filter/index.js';
 
 const VOXEL_SIZE = 1.0;
 const MAXIMUM_TRAVERSAL_DISTANCE = 128;
@@ -114,29 +114,22 @@ export default {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
 
-        // setTimeout(() => {
-        //     var data = new Uint8Array(domElement.width * domElement.height * 4);
-
-        //     gl.bindFramebuffer(gl.FRAMEBUFFER, targetFrameBuffer);
-        //     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, normalTexture, 0);
-        //     gl.readBuffer(gl.COLOR_ATTACHMENT0);
-        //     gl.readPixels(0, 0, domElement.width, domElement.height, gl.RED_INTEGER, gl.UNSIGNED_BYTE, data);
-
-        //     console.log(data);
-        //     const [max, min] = data.reduce(([max, min], val) => [Math.max(max, val), Math.min(min, val)], [-Infinity, Infinity]);
-        //     console.log('Max: ' + max);
-        //     console.log('Min: ' + min);
-
-        //     const sum = data.reduce((sum, val) => sum + val, 0);
-        //     console.log('Sum: ' + sum);
-        // }, 2000);
-
         /**
-         * DISPLAY PHASE SETUP:
+         * FILTER PHASE SETUP:
          */
-        let displayShader = DisplayShader.new(gl, {
+        let filterShader = FilterShader.new(gl, {
             ENABLE_FILTER: enableFilter
         });
+
+        // set up render target texture for first filter pass.
+        const filterTargetTexture = gl.createTexture();
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, filterTargetTexture);
+
+        // initialize texture:
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, domElement.width, domElement.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
 
 
         /**
@@ -194,10 +187,13 @@ export default {
 
                 gl.bindTexture(gl.TEXTURE_2D, planeTexture);
                 gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32I, domElement.width, domElement.height, 0, gl.RED_INTEGER, gl.INT, null);
+
+                gl.bindTexture(gl.TEXTURE_2D, filterTargetTexture);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, domElement.width, domElement.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
             },
 
             setParams({ numberOfSamples = 6, maximumDepth = 8, enableFilter = true } = {}) {
-                displayShader = DisplayShader.new(gl, {
+                filterShader = FilterShader.new(gl, {
                     ENABLE_FILTER: enableFilter
                 });
 
@@ -220,7 +216,7 @@ export default {
                 gl.useProgram(pathTracingShader.program);
                 gl.bindFramebuffer(gl.FRAMEBUFFER, targetFrameBuffer);
 
-                gl.uniform2f(pathTracingShader.uniformLocations.screenDimensions, domElement.width, domElement.height);
+                gl.uniform2f(pathTracingShader.uniformLocations.resolution, domElement.width, domElement.height);
                 gl.uniform1f(pathTracingShader.uniformLocations.seed, Math.random());
                 gl.uniform1f(pathTracingShader.uniformLocations.deltaTime, delta);
                 gl.uniform1f(pathTracingShader.uniformLocations.totalTime, totalTime);
@@ -250,22 +246,46 @@ export default {
                 gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
                 /**
-                 * Display phase:
+                 * Filter phase:
                  */
-                gl.useProgram(displayShader.program);
-                gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+                
+
+                /**
+                 * Filter phase:
+                 */
+                gl.useProgram(filterShader.program);
+ 
+                gl.uniform2f(filterShader.uniformLocations.direction, 0.0, 1.0);
+                gl.uniform2f(filterShader.uniformLocations.resolution, domElement.width, domElement.height);
 
                 gl.activeTexture(gl.TEXTURE0);
                 gl.bindTexture(gl.TEXTURE_2D, pathTracingTexture);
-                gl.uniform1i(displayShader.uniformLocations.tracePass, 0);
+                gl.uniform1i(filterShader.uniformLocations.inputSampler, 0);
 
                 gl.activeTexture(gl.TEXTURE1);
                 gl.bindTexture(gl.TEXTURE_2D, materialNormalTexture);
-                gl.uniform1i(displayShader.uniformLocations.normalPassMaterialNormalSampler, 1);
+                gl.uniform1i(filterShader.uniformLocations.mnSampler, 1);
 
                 gl.activeTexture(gl.TEXTURE2);
                 gl.bindTexture(gl.TEXTURE_2D, planeTexture);
-                gl.uniform1i(displayShader.uniformLocations.normalPassPlaneSampler, 2);
+                gl.uniform1i(filterShader.uniformLocations.pSampler, 2);
+
+                /**
+                 * First pass:
+                 */
+                // gl.bindFramebuffer(gl.FRAMEBUFFER, targetFrameBuffer);
+                // gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, filterTargetTexture, 0);
+
+                // gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.NONE]);
+
+                // gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+                /**
+                 * Final pass:
+                 */
+                gl.uniform2f(filterShader.uniformLocations.direction, 1.0, 0.0);
+                gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
                 gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
             }

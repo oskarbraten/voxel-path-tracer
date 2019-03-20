@@ -18,7 +18,7 @@ export default {
                 cameraFov: context.getUniformLocation(program, 'camera_fov'),
                 cameraAspectRatio: context.getUniformLocation(program, 'camera_aspect_ratio'),
                 
-                screenDimensions: context.getUniformLocation(program, 'screen_dimensions'),
+                resolution: context.getUniformLocation(program, 'resolution'),
                 deltaTime: context.getUniformLocation(program, 'delta_time'),
                 totalTime: context.getUniformLocation(program, 'total_time'),
                 seed: context.getUniformLocation(program, 'seed'),

@@ -15,9 +15,12 @@ export default {
         return {
             program,
             uniformLocations: {
-                tracePass: context.getUniformLocation(program, 'trace_pass'),
-                normalPassMaterialNormalSampler: context.getUniformLocation(program, 'material_normal_sampler'),
-                normalPassPlaneSampler: context.getUniformLocation(program, 'plane_sampler')
+                direction: context.getUniformLocation(program, 'direction'),
+                resolution: context.getUniformLocation(program, 'resolution'),
+
+                inputSampler: context.getUniformLocation(program, 'input_sampler'),
+                mnSampler: context.getUniformLocation(program, 'mn_sampler'),
+                pSampler: context.getUniformLocation(program, 'p_sampler')
             }
         };
     }

@@ -15,7 +15,7 @@ uniform mat4 camera_matrix;
 uniform float camera_fov;
 uniform float camera_aspect_ratio;
 
-uniform vec2 screen_dimensions;
+uniform vec2 resolution;
 
 uniform float delta_time;
 uniform float total_time;
@@ -39,7 +39,7 @@ float rand_seed = 1.0;
 float rand() {
     vec2 seeded_uv = vec2(uv.s + rand_seed, uv.t + rand_seed);
     rand_seed += 0.01; // seed;
-    // rand_seed += seed;
+    //rand_seed += seed;
     return fract(sin(dot(seeded_uv.st, vec2(12.9898,78.233))) * 43758.5453);
 }
 
