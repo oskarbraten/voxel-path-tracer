@@ -274,16 +274,20 @@ export default {
                 /**
                  * First pass:
                  */
-                // gl.bindFramebuffer(gl.FRAMEBUFFER, targetFrameBuffer);
-                // gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, filterTargetTexture, 0);
+                gl.bindFramebuffer(gl.FRAMEBUFFER, targetFrameBuffer);
+                gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, filterTargetTexture, 0);
 
-                // gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.NONE]);
+                gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.NONE]);
 
-                // gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
                 /**
                  * Final pass:
                  */
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, filterTargetTexture);
+                gl.uniform1i(filterShader.uniformLocations.inputSampler, 0);
+
                 gl.uniform2f(filterShader.uniformLocations.direction, 1.0, 0.0);
                 gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
