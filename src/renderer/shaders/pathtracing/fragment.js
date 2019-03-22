@@ -260,12 +260,6 @@ void main() {
 
     color /= float(NUMBER_OF_SAMPLES);
 
-    vec4 previous_color = texture(previous_frame, uv);
-
-    if (reproject) {
-        fColor = vec4(color + previous_color.r, 1.0);
-    } else {
-        fColor = vec4(sqrt(color), 1.0);
-    }
+    fColor = vec4(sqrt(color), 1.0);
     
 }`;

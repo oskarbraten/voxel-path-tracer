@@ -36,7 +36,7 @@ export default class PathTracingPass {
 
         // set up render target texture:
         const targetFrame0 = context.createTexture();
-        context.activeTexture(context.TEXTURE0);
+        context.activeTexture(context.TEXTURE1);
         context.bindTexture(context.TEXTURE_2D, targetFrame0);
         context.texImage2D(context.TEXTURE_2D, 0, context.RGBA, width, height, 0, context.RGBA, context.UNSIGNED_BYTE, null);
         context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.NEAREST);
@@ -44,7 +44,7 @@ export default class PathTracingPass {
 
         // set up render target texture:
         const targetFrame1 = context.createTexture();
-        context.activeTexture(context.TEXTURE0);
+        context.activeTexture(context.TEXTURE1);
         context.bindTexture(context.TEXTURE_2D, targetFrame1);
         context.texImage2D(context.TEXTURE_2D, 0, context.RGBA, width, height, 0, context.RGBA, context.UNSIGNED_BYTE, null);
         context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.NEAREST);
@@ -112,9 +112,9 @@ export default class PathTracingPass {
 
             this.context.uniform1i(this.uniformLocations.reproject, false);
 
-            this.context.activeTexture(this.context.TEXTURE0);
+            this.context.activeTexture(this.context.TEXTURE1);
             this.context.bindTexture(this.context.TEXTURE_2D, this.targets[1]);
-            this.context.uniform1i(this.uniformLocations.previousFrame, 0);
+            this.context.uniform1i(this.uniformLocations.previousFrame, 1);
 
             this.context.framebufferTexture2D(this.context.FRAMEBUFFER, this.context.COLOR_ATTACHMENT0, this.context.TEXTURE_2D, this.targets[0], 0);
 
@@ -133,9 +133,9 @@ export default class PathTracingPass {
             this.context.uniform1i(this.uniformLocations.reproject, true);
             this.context.uniformMatrix4fv(this.uniformLocations.previousCameraMatrix, false, previousCameraMatrix);
 
-            this.context.activeTexture(this.context.TEXTURE0);
+            this.context.activeTexture(this.context.TEXTURE1);
             this.context.bindTexture(this.context.TEXTURE_2D, previousFrame);
-            this.context.uniform1i(this.uniformLocations.previousFrame, 0);
+            this.context.uniform1i(this.uniformLocations.previousFrame, 1);
 
             this.context.framebufferTexture2D(this.context.FRAMEBUFFER, this.context.COLOR_ATTACHMENT0, this.context.TEXTURE_2D, targetFrame, 0);
 
