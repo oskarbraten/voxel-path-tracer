@@ -9,5 +9,5 @@ out vec4 fColor;
 uniform sampler2D input_frame;
 
 void main() {
-    fColor = texture(input_frame, uv);
+    fColor = vec4(sqrt(texture(input_frame, uv)).rgb, 1.0); // sqrt for gamma correction.
 }`;

@@ -6,7 +6,7 @@ import Node from './core/node.js';
 import Camera from './core/camera.js';
 
 let parameters = {
-    numberOfSamples: 12,
+    numberOfSamples: 1,
     maximumDepth: 5,
     update: () => {
         renderer.setParams({

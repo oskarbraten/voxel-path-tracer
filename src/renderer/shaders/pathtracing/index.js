@@ -55,6 +55,8 @@ export default class PathTracingPass {
         this.targets = [targetFrame0, targetFrame1];
         this.previousFrame = 0;
         this.previousCameraMatrix = null;
+
+        this.totalNumberOfSamples = 0;
     }
 
     rebuild(defines) {
@@ -76,7 +78,9 @@ export default class PathTracingPass {
 
             previousCameraMatrix: this.context.getUniformLocation(this.program, 'previous_camera_matrix'),
             previousFrame: this.context.getUniformLocation(this.program, 'previous_frame'),
-            reproject: this.context.getUniformLocation(this.program, 'reproject')
+            reproject: this.context.getUniformLocation(this.program, 'reproject'),
+
+            totalNumberOfSamples: this.context.getUniformLocation(this.program, 'total_number_of_samples')
         };
     }
 
@@ -95,7 +99,7 @@ export default class PathTracingPass {
         cameraMatrix,
         cameraFov,
         cameraAspectRatio,
-        seed = Math.random()
+        seed = (Math.random() * 0.01)
     }) {
 
         this.context.useProgram(this.program);
@@ -108,6 +112,8 @@ export default class PathTracingPass {
         this.context.uniform1f(this.uniformLocations.cameraAspectRatio, cameraAspectRatio);
         this.context.uniform1f(this.uniformLocations.seed, seed);
 
+        this.context.uniform1ui(this.uniformLocations.totalNumberOfSamples, this.totalNumberOfSamples);
+
         if (this.previousCameraMatrix === null) {
 
             this.context.uniform1i(this.uniformLocations.reproject, false);
@@ -117,6 +123,8 @@ export default class PathTracingPass {
             this.context.uniform1i(this.uniformLocations.previousFrame, 1);
 
             this.context.framebufferTexture2D(this.context.FRAMEBUFFER, this.context.COLOR_ATTACHMENT0, this.context.TEXTURE_2D, this.targets[0], 0);
+
+            this.context.drawBuffers([this.context.COLOR_ATTACHMENT0]);
 
             this.context.drawArrays(this.context.TRIANGLE_STRIP, 0, 4);
 
@@ -148,6 +156,7 @@ export default class PathTracingPass {
         }
 
         mat4.copy(this.previousCameraMatrix, cameraMatrix);
+        this.totalNumberOfSamples += 1;
         
     }
 

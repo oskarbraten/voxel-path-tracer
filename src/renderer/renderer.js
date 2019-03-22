@@ -12,8 +12,10 @@ export default class Renderer {
         }
 
         this.context = context;
-
         const gl = this.context;
+
+        // console.log(gl.getSupportedExtensions());
+        // this.context.getExtension('EXT_color_buffer_float');
 
         gl.viewport(0, 0, context.canvas.width, context.canvas.height);
         gl.clearColor(0.0, 0.0, 0.0, 1.0);

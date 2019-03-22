@@ -5,10 +5,12 @@ export default glsl`#version 300 es
 precision highp float;
 precision highp int;
 precision highp usampler3D;
+precision highp sampler2D;
 
 __DEFINES__
 
-in vec2 uv;
+in vec2 st; // [-1.0, 1.0]
+in vec2 uv; // [0.0, 1.0]
 out vec4 fColor;
 
 uniform mat4 camera_matrix;
@@ -17,6 +19,7 @@ uniform float camera_aspect_ratio;
 
 uniform vec2 resolution;
 uniform float seed;
+uniform uint total_number_of_samples;
 
 uniform sampler2D previous_frame;
 uniform mat4 previous_camera_matrix;
@@ -35,13 +38,12 @@ layout(std140) uniform Materials {
     material materials[NUMBER_OF_MATERIALS];
 };
 
-float rand_seed = 1.0;
+float rand_seed = 0.0; // assigned in main.
 
 float rand() {
-    vec2 seeded_uv = vec2(uv.s + rand_seed, uv.t + rand_seed);
-    rand_seed += 0.01; // seed;
-    //rand_seed += seed;
-    return fract(sin(dot(seeded_uv.st, vec2(12.9898,78.233))) * 43758.5453);
+    vec2 seeded = vec2(st.s + rand_seed, st.t + rand_seed);
+    rand_seed += 0.01;
+    return fract(sin(dot(seeded.st, vec2(12.9898,78.233))) * 43758.5453);
 }
 
 vec3 random_in_unit_sphere() {
@@ -236,30 +238,34 @@ vec3 trace(ray r) {
     }
 }
 
+const float alpha = 1.0/5.0;
+
 void main() {
+    rand_seed = seed; // seed the random number generator.
 
     float scale = tan(radians(camera_fov * 0.5));
-
     vec3 origin = vec3(camera_matrix[3][0], camera_matrix[3][1], camera_matrix[3][2]);
-    vec3 direction = normalize((camera_matrix * vec4(uv.x * camera_aspect_ratio * scale, uv.y * scale, -1.0, 0.0)).xyz);
-    
-    vec3 color = vec3(0.0, 0.0, 0.0);
 
+    // antialiasing (TODO: should this be multiplied by 2.0, since st.axis is in [-1.0, 1.0]?)
+    float du = rand() / resolution.x;
+    float dv = rand() / resolution.y;
 
-    for (int i = 0; i < NUMBER_OF_SAMPLES; i++) {
+    vec3 direction = normalize((camera_matrix * vec4((st.x + du) * camera_aspect_ratio * scale, (st.y + dv) * scale, -1.0, 0.0)).xyz);
 
-        // float du = rand() / screen_dimensions.x;
-        // float dv = rand() / screen_dimensions.y;
-        // vec3 aa = vec3(du, dv, 0.0);
+    ray r = ray(origin, direction);
+    vec3 color = trace(r);
 
-        ray r = ray(origin, direction);
+    vec3 final_color;
 
-        color += trace(r);
-
+    if (reproject) {
+        vec3 previous_color = texture(previous_frame, uv).rgb;
+        final_color = ((previous_color * float(total_number_of_samples)) + color) / float(total_number_of_samples + 1u);
+    } else {
+        final_color = color;
     }
 
-    color /= float(NUMBER_OF_SAMPLES);
-
-    fColor = vec4(sqrt(color), 1.0);
+    
+    // vec3 cf = (alpha * sqrt(color)) + ((1.0 - alpha) * cpf);
+    fColor = vec4(final_color, 1.0);
     
 }`;
