@@ -16,10 +16,11 @@ uniform float camera_fov;
 uniform float camera_aspect_ratio;
 
 uniform vec2 resolution;
-
-uniform float delta_time;
-uniform float total_time;
 uniform float seed;
+
+uniform sampler2D previous_frame;
+uniform mat4 previous_camera_matrix;
+uniform bool reproject;
 
 uniform usampler3D voxel_data;
 
@@ -259,5 +260,12 @@ void main() {
 
     color /= float(NUMBER_OF_SAMPLES);
 
-    fColor = vec4(sqrt(color), 1.0);
+    vec4 previous_color = texture(previous_frame, uv);
+
+    if (reproject) {
+        fColor = vec4(color + previous_color.r, 1.0);
+    } else {
+        fColor = vec4(sqrt(color), 1.0);
+    }
+    
 }`;

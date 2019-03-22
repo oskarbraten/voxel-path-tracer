@@ -144,6 +144,90 @@ vec4 blur(sampler2D image, vec2 uv, vec2 resolution, vec2 direction) {
 	return vec4(sum.rgb / weight_sum, 1.0);
 }
 
+// vec4 average(sampler2D image, vec2 uv, vec2 resolution, vec2 direction) {
+
+//     vec4 c = texture(image, uv);
+
+//     uvec2 mn = texture(mn_sampler, uv).rg;
+//     if (mn.r == 0u) {
+//         return c; // no need to blur air..
+//     }
+
+//     int p = texture(p_sampler, uv).r;
+
+//     vec4 sum = vec4(0.0);
+//     int n = 0;
+    
+//     ivec2 center = ivec2(uv * resolution);
+
+//     ivec2 offset_5p = (center + ivec2(5) * ivec2(direction));
+//     ivec2 offset_4p = (center + ivec2(4) * ivec2(direction));
+//     ivec2 offset_3p = (center + ivec2(3) * ivec2(direction));
+//     ivec2 offset_2p = (center + ivec2(2) * ivec2(direction));
+//     ivec2 offset_1p = (center + ivec2(1) * ivec2(direction));
+
+//     ivec2 offset_5n = (center + ivec2(-5) * ivec2(direction));
+//     ivec2 offset_4n = (center + ivec2(-4) * ivec2(direction));
+//     ivec2 offset_3n = (center + ivec2(-3) * ivec2(direction));
+//     ivec2 offset_2n = (center + ivec2(-2) * ivec2(direction));
+//     ivec2 offset_1n = (center + ivec2(-1) * ivec2(direction));
+
+//     if (mn == texelFetch(mn_sampler, offset_5n, 0).rg && p == texelFetch(p_sampler, offset_5n, 0).r) {
+//         sum += texelFetch(image, offset_5n, 0);
+//         n++;
+//     }
+
+//     if (mn == texelFetch(mn_sampler, offset_4n, 0).rg && p == texelFetch(p_sampler, offset_4n, 0).r) {
+//         sum += texelFetch(image, offset_4n, 0);
+//         n++;
+//     }
+
+//     if (mn == texelFetch(mn_sampler, offset_3n, 0).rg && p == texelFetch(p_sampler, offset_3n, 0).r) {
+//         sum += texelFetch(image, offset_3n, 0);
+//         n++;
+//     }
+    
+//     if (mn == texelFetch(mn_sampler, offset_2n, 0).rg && p == texelFetch(p_sampler, offset_2n, 0).r) {
+//         sum += texelFetch(image, offset_2n, 0);
+//         n++;
+//     }
+
+//     if (mn == texelFetch(mn_sampler, offset_1n, 0).rg && p == texelFetch(p_sampler, offset_1n, 0).r) {
+//         sum += texelFetch(image, offset_1n, 0);
+//         n++;
+//     }
+	
+//     sum += texelFetch(image, center, 0);
+//     n++;
+    
+//     if (mn == texelFetch(mn_sampler, offset_1p, 0).rg && p == texelFetch(p_sampler, offset_1p, 0).r) {
+//         sum += texelFetch(image, offset_1p, 0);
+//         n++;
+//     }
+
+//     if (mn == texelFetch(mn_sampler, offset_2p, 0).rg && p == texelFetch(p_sampler, offset_2p, 0).r) {
+//         sum += texelFetch(image, offset_2p, 0);
+//         n++;
+//     }
+
+//     if (mn == texelFetch(mn_sampler, offset_3p, 0).rg && p == texelFetch(p_sampler, offset_3p, 0).r) {
+//         sum += texelFetch(image, offset_3p, 0);
+//         n++;
+//     }
+
+//     if (mn == texelFetch(mn_sampler, offset_4p, 0).rg && p == texelFetch(p_sampler, offset_4p, 0).r) {
+//         sum += texelFetch(image, offset_4p, 0);
+//         n++;
+//     }
+
+//     if (mn == texelFetch(mn_sampler, offset_5p, 0).rg && p == texelFetch(p_sampler, offset_5p, 0).r) {
+//         sum += texelFetch(image, offset_5p, 0);
+//         n++;
+//     }
+
+// 	return mix(c, vec4(sum.rgb / float(n), 1.0), 1.0);
+// }
+
 vec4 average(sampler2D image, vec2 uv, vec2 resolution, vec2 direction) {
 
     vec4 c = texture(image, uv);
@@ -159,74 +243,18 @@ vec4 average(sampler2D image, vec2 uv, vec2 resolution, vec2 direction) {
     int n = 0;
     
     ivec2 center = ivec2(uv * resolution);
+    for (int i = 0; i < 8; i++) {
+        ivec2 offset = (center + ivec2(i - 4) * ivec2(direction));
 
-    ivec2 offset_5p = (center + ivec2(5) * ivec2(direction));
-    ivec2 offset_4p = (center + ivec2(4) * ivec2(direction));
-    ivec2 offset_3p = (center + ivec2(3) * ivec2(direction));
-    ivec2 offset_2p = (center + ivec2(2) * ivec2(direction));
-    ivec2 offset_1p = (center + ivec2(1) * ivec2(direction));
-
-    ivec2 offset_5n = (center + ivec2(-5) * ivec2(direction));
-    ivec2 offset_4n = (center + ivec2(-4) * ivec2(direction));
-    ivec2 offset_3n = (center + ivec2(-3) * ivec2(direction));
-    ivec2 offset_2n = (center + ivec2(-2) * ivec2(direction));
-    ivec2 offset_1n = (center + ivec2(-1) * ivec2(direction));
-
-    if (mn == texelFetch(mn_sampler, offset_5n, 0).rg && p == texelFetch(p_sampler, offset_5n, 0).r) {
-        sum += texelFetch(image, offset_5n, 0);
-        n++;
-    }
-
-    if (mn == texelFetch(mn_sampler, offset_4n, 0).rg && p == texelFetch(p_sampler, offset_4n, 0).r) {
-        sum += texelFetch(image, offset_4n, 0);
-        n++;
-    }
-
-    if (mn == texelFetch(mn_sampler, offset_3n, 0).rg && p == texelFetch(p_sampler, offset_3n, 0).r) {
-        sum += texelFetch(image, offset_3n, 0);
-        n++;
+        if (mn == texelFetch(mn_sampler, offset, 0).rg && p == texelFetch(p_sampler, offset, 0).r) {
+            sum += texelFetch(image, offset, 0);
+            n++;
+        }
     }
     
-    if (mn == texelFetch(mn_sampler, offset_2n, 0).rg && p == texelFetch(p_sampler, offset_2n, 0).r) {
-        sum += texelFetch(image, offset_2n, 0);
-        n++;
-    }
-
-    if (mn == texelFetch(mn_sampler, offset_1n, 0).rg && p == texelFetch(p_sampler, offset_1n, 0).r) {
-        sum += texelFetch(image, offset_1n, 0);
-        n++;
-    }
-	
-    sum += texelFetch(image, center, 0);
-    n++;
-    
-    if (mn == texelFetch(mn_sampler, offset_1p, 0).rg && p == texelFetch(p_sampler, offset_1p, 0).r) {
-        sum += texelFetch(image, offset_1p, 0);
-        n++;
-    }
-
-    if (mn == texelFetch(mn_sampler, offset_2p, 0).rg && p == texelFetch(p_sampler, offset_2p, 0).r) {
-        sum += texelFetch(image, offset_2p, 0);
-        n++;
-    }
-
-    if (mn == texelFetch(mn_sampler, offset_3p, 0).rg && p == texelFetch(p_sampler, offset_3p, 0).r) {
-        sum += texelFetch(image, offset_3p, 0);
-        n++;
-    }
-
-    if (mn == texelFetch(mn_sampler, offset_4p, 0).rg && p == texelFetch(p_sampler, offset_4p, 0).r) {
-        sum += texelFetch(image, offset_4p, 0);
-        n++;
-    }
-
-    if (mn == texelFetch(mn_sampler, offset_5p, 0).rg && p == texelFetch(p_sampler, offset_5p, 0).r) {
-        sum += texelFetch(image, offset_5p, 0);
-        n++;
-    }
-
-	return mix(c, vec4(sum.rgb / float(n), 1.0), 0.9);
+	return mix(c, vec4(sum.rgb / float(n), 1.0), 1.0);
 }
+
 
 void main() {
     #ifdef ENABLE_FILTER

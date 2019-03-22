@@ -1,19 +1,17 @@
 import * as dat from '../lib/dat.gui.module.js';
 import CameraController from './controls/CameraController.js';
 
-import Renderer from './renderer.js';
+import Renderer from './renderer/renderer.js';
 import Node from './core/node.js';
 import Camera from './core/camera.js';
 
 let parameters = {
-    numberOfSamples: 2,
+    numberOfSamples: 12,
     maximumDepth: 5,
-    enableFilter: true,
     update: () => {
         renderer.setParams({
             numberOfSamples: parameters.numberOfSamples,
-            maximumDepth: parameters.maximumDepth,
-            enableFilter: parameters.enableFilter
+            maximumDepth: parameters.maximumDepth
         });
     }
 };
@@ -22,14 +20,13 @@ const gui = new dat.GUI();
 
 gui.add(parameters, 'numberOfSamples', 1, 128, 1).name("Num. Samples");
 gui.add(parameters, 'maximumDepth', 1, 64, 1).name("Maximum Depth");
-gui.add(parameters, 'enableFilter').name("Enable filter");
 gui.add(parameters, 'update').name("Update shader");
 
 const gl = document.createElement('canvas').getContext('webgl2');
-const renderer = Renderer.new(gl, parameters);
+const renderer = new Renderer(gl, parameters);
 
 renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
+document.body.appendChild(renderer.context.canvas);
 
 const cameraNode = Node.new();
 
@@ -46,7 +43,7 @@ window.addEventListener('resize', () => {
 }, false);
 
 let cameraController = new CameraController(cameraNode);
-let canvas = renderer.domElement;
+let canvas = renderer.context.canvas;
 canvas.addEventListener('click', () => {
     canvas.requestPointerLock();
 });
@@ -142,7 +139,7 @@ function loop(now) {
     pitch = 0;
 
     cameraNode.tick();
-    renderer.draw(delta, camera, parameters);
+    renderer.draw(delta, camera, parameters.numberOfFilterPasses);
 
     meter.tick();
 
