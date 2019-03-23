@@ -7,7 +7,7 @@
 - [ ] Light sources
 - [ ] HDR
 
-### Temporal reverse reprojection
+### Reverse reprojection
 
 The availability of concrete examples on this subject is somewhat limited. I wish remedy this with the following explanation.
 
@@ -15,7 +15,7 @@ Temporal reverse reprojection is the act of reprojecting the the previously rend
 
 Note. Since this is a pure path tracer (no rasterization, excepting the fullscreen quad) the actual technique used differs somewhat from the one presented by Nehad, D. et al <sup>2</sup>. Specifically, the reprojected coordinates must be calculated per pixel in the fragment shader, instead of utilizing interpolation capabilites (from vertex to fragment).
 
-#### Reverse reprojection
+#### How-to
 Given the world space position of a fragment in the current frame, what is its corresponding uv-coordinate in the previous frame?
 The answer to this is surprisingly simple:
 
