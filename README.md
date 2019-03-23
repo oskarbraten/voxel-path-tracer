@@ -17,6 +17,7 @@ Note. Since this is a pure path tracer (no rasterization, excepting the fullscre
 
 #### How-to
 Given the world space position of a fragment in the current frame, what is its corresponding uv-coordinate in the previous frame?
+
 The answer to this is surprisingly simple:
 
 ~~~~glsl
