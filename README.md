@@ -26,7 +26,7 @@ p = p.xyz / p.w; // perspective division
 vec2 previous_uv = vec2((p.x / 2.0) + 0.5, (p.y / 2.0) + 0.5);
 ~~~~
 
-First, the previous view matrix must be passed in as a uniform. This is simply the view matrix that was used when rendering the previous frame. After multiplying the position by the projection and view matrix we do a perspective division, and voila! The position has now been transformed to normalized device coordinates. The final step is to bring it into fullscreen "uv" space.
+First, the previous view matrix must be passed in as a uniform. This is simply the view matrix that was used when rendering the previous frame. After multiplying the position by the projection and view matrix we do a perspective division, and voila! The position has now been transformed to normalized device coordinates. The last step is to bring it into fullscreen "uv" space.
 
 ~~~~glsl
 vec3 previous_color = texture(previous_frame, previous_uv).rgb;
@@ -34,7 +34,12 @@ vec3 previous_color = texture(previous_frame, previous_uv).rgb;
 Finally, we sample the previous frame to get our color.
 
 #### Cache miss
+But wait, why not reproject all the things? You may ask.
+Unfortunately, as the camera is moved or rotated, certain parts of the scene may occlude other parts. In these cases, if we were to sample the previous frame anyway, the results would look warped and terrible. So instead of just using them we discard them. We call that a cache miss.
 
+So how can we decide if a sample is no longer valid?
+
+...
 
 ### References
 
