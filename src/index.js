@@ -6,11 +6,9 @@ import Node from './core/node.js';
 import Camera from './core/camera.js';
 
 let parameters = {
-    numberOfSamples: 1,
     maximumDepth: 5,
     update: () => {
         renderer.setParams({
-            numberOfSamples: parameters.numberOfSamples,
             maximumDepth: parameters.maximumDepth
         });
     }
@@ -18,7 +16,6 @@ let parameters = {
 
 const gui = new dat.GUI();
 
-gui.add(parameters, 'numberOfSamples', 1, 128, 1).name("Num. Samples");
 gui.add(parameters, 'maximumDepth', 1, 64, 1).name("Maximum Depth");
 gui.add(parameters, 'update').name("Update shader");
 
@@ -28,21 +25,26 @@ const renderer = new Renderer(gl, parameters);
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.context.canvas);
 
-const cameraNode = Node.new();
+const cameraNode = new Node();
 
 cameraNode.applyTranslation(-5.0, 64.0, -5.0);
 
 cameraNode.applyRotationY(Math.PI + 0.8);
 cameraNode.applyRotationX(-Math.PI/6);
 
-const camera = Camera.new(cameraNode, window.innerWidth / window.innerHeight);
+const camera = new Camera(window.innerWidth / window.innerHeight);
+cameraNode.add(camera);
 
 window.addEventListener('resize', () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
+
     camera.aspectRatio = (window.innerWidth / window.innerHeight);
+    camera.updateProjectionMatrix();
 }, false);
 
 let cameraController = new CameraController(cameraNode);
+
+
 let canvas = renderer.context.canvas;
 canvas.addEventListener('click', () => {
     canvas.requestPointerLock();
@@ -139,7 +141,7 @@ function loop(now) {
     pitch = 0;
 
     cameraNode.tick();
-    renderer.draw(delta, camera, parameters.numberOfFilterPasses);
+    renderer.draw(delta, camera);
 
     meter.tick();
 
