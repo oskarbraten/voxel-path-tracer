@@ -289,12 +289,9 @@ vec3 temporal_reverse_reprojection(in hit_record record, vec3 color) {
                 previous_uv.y < 1.0 == true &&
     
                 // within depth:
-                abs(record.depth - previous_record.depth) <= 0.8
+                abs(record.depth - previous_record.depth) <= 0.4
     
             ) {
-
-                // final_color = ((previous_color * float(total_number_of_samples)) + color) / float(total_number_of_samples + 1u); // average over time.
-
                 vec3 previous_color = texture(previous_frame, previous_uv).rgb;
                 return (alpha * color) + (1.0 - alpha) * previous_color;
             }
