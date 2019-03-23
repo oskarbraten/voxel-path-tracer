@@ -3,7 +3,7 @@ const glsl = x => x.raw[0];
 export default glsl`#version 300 es
 
 precision highp float;
-precision highp usampler3D;
+precision mediump usampler3D;
 
 __DEFINES__
 

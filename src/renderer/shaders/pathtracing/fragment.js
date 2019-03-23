@@ -5,21 +5,32 @@ export default glsl`#version 300 es
 precision highp float;
 precision highp int;
 precision highp usampler3D;
+precision highp sampler2D;
 
 __DEFINES__
 
-in vec2 uv;
+// coordinates:
+in vec2 st; // [-1.0, 1.0]
+in vec2 uv; // [0.0, 1.0]
+
+// cameras:
+in vec3 ray_direction;
+in vec3 previous_ray_direction;
+in vec3 camera_origin;
+in vec3 previous_camera_origin;
+
 out vec4 fColor;
 
-uniform mat4 camera_matrix;
-uniform float camera_fov;
-uniform float camera_aspect_ratio;
-
-uniform vec2 screen_dimensions;
-
-uniform float delta_time;
-uniform float total_time;
+uniform vec2 resolution;
 uniform float seed;
+
+// projection:
+uniform mat4 projection_matrix;
+
+// reprojection:
+uniform bool reproject;
+uniform sampler2D previous_frame;
+uniform mat4 previous_view_matrix;
 
 uniform usampler3D voxel_data;
 
@@ -34,13 +45,12 @@ layout(std140) uniform Materials {
     material materials[NUMBER_OF_MATERIALS];
 };
 
-float rand_seed = 1.0;
+float rand_seed = 0.0; // assigned in main.
 
 float rand() {
-    vec2 seeded_uv = vec2(uv.s + rand_seed, uv.t + rand_seed);
-    rand_seed += 0.01; // seed;
-    // rand_seed += seed;
-    return fract(sin(dot(seeded_uv.st, vec2(12.9898,78.233))) * 43758.5453);
+    vec2 seeded = vec2(st.s + rand_seed, st.t + rand_seed);
+    rand_seed += 0.01;
+    return fract(sin(dot(seeded.st, vec2(12.9898,78.233))) * 43758.5453);
 }
 
 vec3 random_in_unit_sphere() {
@@ -53,6 +63,7 @@ vec3 random_in_unit_sphere() {
 
 struct hit_record {
     float t;
+    float depth;
     vec3 position;
     vec3 normal;
     uint id;
@@ -194,6 +205,7 @@ bool voxel_traversal(in ray r, out hit_record record) {
 
         if (record.id != 0u) {
             record.position = point_at(r, record.t);
+            record.depth = length(direction * record.t);
             return true;
         }
 
@@ -208,19 +220,29 @@ vec3 background(ray r) {
     return mix(vec3(1.0, 1.0, 1.0), vec3(0.5, 0.7, 1.0), t);
 }
 
-vec3 trace(ray r) {
+vec3 trace(ray r, out hit_record record) {
 
     vec3 color = vec3(1.0, 1.0, 1.0);
 
-    hit_record record;
-
     ray scattered;
-  	vec3 attenuation;
+    vec3 attenuation;
 
-    int i = 0;
-    while ((i < MAXIMUM_DEPTH) && voxel_traversal(r, record)) {
-
+    // do first bounce here, so that we may return its record.
+    if (voxel_traversal(r, record)) {
         scatter(r, record, attenuation, scattered);
+        
+		r = scattered;
+        color *= attenuation;
+    } else {
+        return background(r);
+    }
+
+    hit_record bounce_record;
+
+    int i = 1; // already did one bounce.
+    while ((i < MAXIMUM_DEPTH) && voxel_traversal(r, bounce_record)) {
+
+        scatter(r, bounce_record, attenuation, scattered);
         
 		r = scattered;
         color *= attenuation;
@@ -233,31 +255,69 @@ vec3 trace(ray r) {
     } else {
         return color * background(r);
     }
+
+}
+
+
+const float alpha = 0.5/5.0;
+
+vec3 temporal_reverse_reprojection(in hit_record record, vec3 color) {
+
+    // TODO: swap this uniform with a define?
+    if (reproject) {
+
+        vec3 origin = previous_camera_origin;
+        vec3 direction = normalize(previous_ray_direction);
+        ray ray = ray(origin, direction);
+    
+        hit_record previous_record; // hit_record for the previous frame.
+        voxel_traversal(ray, previous_record);
+    
+        if (record.id != 0u) {
+    
+            // reverse reprojection:
+            vec4 point = projection_matrix * previous_view_matrix * vec4(record.position, 1.0);
+            vec3 p = point.xyz / point.w;
+    
+            vec2 previous_uv = vec2((p.x / 2.0) + 0.5, (p.y / 2.0) + 0.5);
+    
+            if (
+                // within bounds:
+                previous_uv.x > 0.0 == true &&
+                previous_uv.y > 0.0 == true &&
+                previous_uv.x < 1.0 == true &&
+                previous_uv.y < 1.0 == true &&
+    
+                // within depth:
+                abs(record.depth - previous_record.depth) <= 0.4
+    
+            ) {
+                vec3 previous_color = texture(previous_frame, previous_uv).rgb;
+                return (alpha * color) + (1.0 - alpha) * previous_color;
+            }
+        }
+    }
+
+    return color;
 }
 
 void main() {
 
-    float scale = tan(radians(camera_fov * 0.5));
+    rand_seed = seed; // seed the random number generator.
 
-    vec3 origin = vec3(camera_matrix[3][0], camera_matrix[3][1], camera_matrix[3][2]);
-    vec3 direction = normalize((camera_matrix * vec4(uv.x * camera_aspect_ratio * scale, uv.y * scale, -1.0, 0.0)).xyz);
+    vec3 origin = camera_origin;
+    vec3 direction = normalize(ray_direction);
+
+    float du = (rand() / resolution.x) * 0.02;
+    float dv = (rand() / resolution.y) * 0.02;
+    vec3 aa = vec3(du, dv, 0.0);
+
+    ray r = ray(origin, direction + aa);
+
+    hit_record record; // get record from first bounce for reprojection later.
+    vec3 color = trace(r, record);
+
+    vec3 final_color = temporal_reverse_reprojection(record, color);
+    fColor = vec4(final_color, 1.0);
     
-    vec3 color = vec3(0.0, 0.0, 0.0);
-
-
-    for (int i = 0; i < NUMBER_OF_SAMPLES; i++) {
-
-        // float du = rand() / screen_dimensions.x;
-        // float dv = rand() / screen_dimensions.y;
-        // vec3 aa = vec3(du, dv, 0.0);
-
-        ray r = ray(origin, direction);
-
-        color += trace(r);
-
-    }
-
-    color /= float(NUMBER_OF_SAMPLES);
-
-    fColor = vec4(sqrt(color), 1.0);
 }`;
