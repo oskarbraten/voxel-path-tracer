@@ -64,7 +64,7 @@ export default class Renderer {
          */
 
         let pathTracingPass = new PathTracingPass(gl, context.canvas.width, context.canvas.height, {
-            VOXEL_SIZE: VOXEL_SIZE + '.0',
+            VOXEL_SIZE: VOXEL_SIZE.toFixed(2),
             MAXIMUM_TRAVERSAL_DISTANCE,
             MAXIMUM_DEPTH: maximumDepth
         });
@@ -106,7 +106,7 @@ export default class Renderer {
             camera
         });
 
-        const finalFrame = this.pathTracingPass.targets[this.pathTracingPass.previousFrame];
+        const finalFrame = this.pathTracingPass.targets[this.pathTracingPass.previousTarget].color;
         this.finalPass.draw(finalFrame);
 
         // /**

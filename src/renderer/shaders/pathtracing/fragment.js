@@ -6,6 +6,8 @@ precision highp float;
 precision highp int;
 precision highp usampler3D;
 precision highp sampler2D;
+precision highp usampler2D;
+precision highp isampler2D;
 
 __DEFINES__
 
@@ -15,22 +17,28 @@ in vec2 uv; // [0.0, 1.0]
 
 // cameras:
 in vec3 ray_direction;
-in vec3 previous_ray_direction;
 in vec3 camera_origin;
-in vec3 previous_camera_origin;
 
-out vec4 fColor;
+layout(location = 0) out vec4 f_color;
+layout(location = 1) out vec3 f_normal;
+layout(location = 2) out uint f_material_id; // material of the block
+layout(location = 3) out int f_offset_id; // offset along the normal of the block.
 
 uniform vec2 resolution;
 uniform float seed;
 
 // projection:
 uniform mat4 projection_matrix;
+uniform mat4 view_matrix;
 
 // reprojection:
-uniform bool reproject;
-uniform sampler2D previous_frame;
+uniform float reproject; // 0.0 = disabled, 1.0 = enabled.
 uniform mat4 previous_view_matrix;
+
+uniform sampler2D previous_color;
+uniform sampler2D previous_normal;
+uniform usampler2D previous_material_id;
+uniform isampler2D previous_offset_id;
 
 uniform usampler3D voxel_data;
 
@@ -63,7 +71,6 @@ vec3 random_in_unit_sphere() {
 
 struct hit_record {
     float t;
-    float depth;
     vec3 position;
     vec3 normal;
     uint id;
@@ -205,7 +212,70 @@ bool voxel_traversal(in ray r, out hit_record record) {
 
         if (record.id != 0u) {
             record.position = point_at(r, record.t);
-            record.depth = length(direction * record.t);
+            return true;
+        }
+
+        i += 1;
+    } while (i < MAXIMUM_TRAVERSAL_DISTANCE);
+
+    return false;
+}
+
+bool first_voxel_traversal(in ray r, out hit_record record, out int offset_id) {
+
+    vec3 origin = r.origin;
+    vec3 direction = r.direction;
+
+    ivec3 current_voxel = ivec3(floor(origin / VOXEL_SIZE));
+
+    ivec3 step = ivec3(
+        (direction.x > 0.0) ? 1 : -1,
+        (direction.y > 0.0) ? 1 : -1,
+        (direction.z > 0.0) ? 1 : -1
+    );
+
+    vec3 next_boundary = vec3(
+        float((step.x > 0) ? current_voxel.x + 1 : current_voxel.x) * VOXEL_SIZE,
+        float((step.y > 0) ? current_voxel.y + 1 : current_voxel.y) * VOXEL_SIZE,
+        float((step.z > 0) ? current_voxel.z + 1 : current_voxel.z) * VOXEL_SIZE
+    );
+
+    vec3 t_max = (next_boundary - origin) / direction; // we will move along the axis with the smallest value
+    vec3 t_delta = VOXEL_SIZE / direction * vec3(step);
+
+    int i = 0;
+
+    do {
+        if (t_max.x < t_max.y && t_max.x < t_max.z) {
+            offset_id = current_voxel.x;
+
+            record.t = t_max.x;
+            record.normal = vec3(float(-step.x), 0.0, 0.0);
+
+            t_max.x += t_delta.x;
+            current_voxel.x += step.x;
+        } else if (t_max.y < t_max.z) {
+            offset_id = current_voxel.y;
+
+            record.t = t_max.y;
+            record.normal = vec3(0.0, float(-step.y), 0.0);
+
+            t_max.y += t_delta.y;
+            current_voxel.y += step.y;
+        } else {
+            offset_id = current_voxel.z;
+
+            record.t = t_max.z;
+            record.normal = vec3(0.0, 0.0, float(-step.z));
+
+            t_max.z += t_delta.z;
+            current_voxel.z += step.z;
+        }
+
+        record.id = texelFetch(voxel_data, current_voxel, 0).r;
+
+        if (record.id != 0u) {
+            record.position = point_at(r, record.t);
             return true;
         }
 
@@ -226,11 +296,16 @@ vec3 trace(ray r, out hit_record record) {
 
     ray scattered;
     vec3 attenuation;
+    
+    // do first bounce here, so that we may return its record, and additional information.
+    int offset_id;
+    if (first_voxel_traversal(r, record, offset_id)) {
 
-    // do first bounce here, so that we may return its record.
-    if (voxel_traversal(r, record)) {
+        f_normal = 0.5 * record.normal + 0.5;
+        f_material_id = record.id;
+        f_offset_id = offset_id;
+
         scatter(r, record, attenuation, scattered);
-        
 		r = scattered;
         color *= attenuation;
     } else {
@@ -258,43 +333,35 @@ vec3 trace(ray r, out hit_record record) {
 
 }
 
-
-const float alpha = 0.5/5.0;
-
+const float ALPHA = 1.0/9.0;
 vec3 temporal_reverse_reprojection(in hit_record record, vec3 color) {
+    if (record.id != 0u) {
 
-    // TODO: swap this uniform with a define?
-    if (reproject) {
+        // reverse reprojection:
+        vec4 point = projection_matrix * previous_view_matrix * vec4(record.position, 1.0);
+        vec3 p = point.xyz / point.w;
 
-        vec3 origin = previous_camera_origin;
-        vec3 direction = normalize(previous_ray_direction);
-        ray ray = ray(origin, direction);
-    
-        hit_record previous_record; // hit_record for the previous frame.
-        voxel_traversal(ray, previous_record);
-    
-        if (record.id != 0u) {
-    
-            // reverse reprojection:
-            vec4 point = projection_matrix * previous_view_matrix * vec4(record.position, 1.0);
-            vec3 p = point.xyz / point.w;
-    
-            vec2 previous_uv = vec2((p.x / 2.0) + 0.5, (p.y / 2.0) + 0.5);
-    
-            if (
-                // within bounds:
-                previous_uv.x > 0.0 == true &&
-                previous_uv.y > 0.0 == true &&
-                previous_uv.x < 1.0 == true &&
-                previous_uv.y < 1.0 == true &&
-    
-                // within depth:
-                abs(record.depth - previous_record.depth) <= 0.4
-    
-            ) {
-                vec3 previous_color = texture(previous_frame, previous_uv).rgb;
-                return (alpha * color) + (1.0 - alpha) * previous_color;
-            }
+        vec2 previous_uv = vec2((p.x / 2.0) + 0.5, (p.y / 2.0) + 0.5);
+
+        vec3 previous_normal = texture(previous_normal, previous_uv).rgb;
+        int previous_offset_id = texture(previous_offset_id, previous_uv).r;
+        uint previous_material_id = texture(previous_material_id, previous_uv).r;
+
+        if (
+            // within bounds:
+            previous_uv.x > 0.0 == true &&
+            previous_uv.y > 0.0 == true &&
+            previous_uv.x < 1.0 == true &&
+            previous_uv.y < 1.0 == true &&
+
+            // within confines of "voxel area":
+            f_material_id == previous_material_id &&
+            distance(f_normal, previous_normal) < 0.1 &&
+            f_offset_id == previous_offset_id
+        ) {
+            float alpha = ALPHA * reproject;
+            vec3 previous_color = texture(previous_color, previous_uv).rgb;
+            return (alpha * color) + (1.0 - alpha) * previous_color;
         }
     }
 
@@ -314,10 +381,10 @@ void main() {
 
     ray r = ray(origin, direction + aa);
 
-    hit_record record; // get record from first bounce for reprojection later.
+    hit_record record; // get record from first bounce for reprojection.
     vec3 color = trace(r, record);
 
     vec3 final_color = temporal_reverse_reprojection(record, color);
-    fColor = vec4(final_color, 1.0);
-    
+
+    f_color = vec4(final_color, 1.0);
 }`;
