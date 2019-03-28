@@ -10,98 +10,200 @@ export default class PathTracingPass {
     constructor(context, width, height, defines = {}) {
 
         this.context = context;
+        const gl = context;
 
         defines.NUMBER_OF_MATERIALS = NUMBER_OF_MATERIALS;
 
         this.rebuild(defines);
 
-        const materialBuffer = context.createBuffer();
-        context.bindBufferBase(context.UNIFORM_BUFFER, 0, materialBuffer);
-        context.bufferData(context.UNIFORM_BUFFER, MATERIAL_ARRAY_BUFFER, context.DYNAMIC_DRAW);
-        context.uniformBlockBinding(this.program, context.getUniformBlockIndex(this.program, 'Materials'), 0);
+        const materialBuffer = gl.createBuffer();
+        gl.bindBufferBase(gl.UNIFORM_BUFFER, 0, materialBuffer);
+        gl.bufferData(gl.UNIFORM_BUFFER, MATERIAL_ARRAY_BUFFER, gl.DYNAMIC_DRAW);
+        gl.uniformBlockBinding(this.program, gl.getUniformBlockIndex(this.program, 'Materials'), 0);
 
-        const voxelTexture = context.createTexture();
-        context.activeTexture(context.TEXTURE0);
-        context.bindTexture(context.TEXTURE_3D, voxelTexture);
+        const voxelTexture = gl.createTexture();
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_3D, voxelTexture);
 
-        context.texParameteri(context.TEXTURE_3D, context.TEXTURE_MAG_FILTER, context.NEAREST);
-        context.texParameteri(context.TEXTURE_3D, context.TEXTURE_MIN_FILTER, context.NEAREST);
+        this.voxelTexture = voxelTexture;
+
+        gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
 
         const size = 64;
         const voxels = generate(size);
 
-        context.texImage3D(context.TEXTURE_3D, 0, context.R8UI, size, size, size, 0, context.RED_INTEGER, context.UNSIGNED_BYTE, voxels);
-
-        // set up render target texture:
-        const targetFrame0 = context.createTexture();
-        context.activeTexture(context.TEXTURE1);
-        context.bindTexture(context.TEXTURE_2D, targetFrame0);
-        context.texImage2D(context.TEXTURE_2D, 0, context.RGBA, width, height, 0, context.RGBA, context.UNSIGNED_BYTE, null);
-
-        context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.LINEAR);
-        context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MIN_FILTER, context.LINEAR);
-        context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
-        context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
+        gl.texImage3D(gl.TEXTURE_3D, 0, gl.R8UI, size, size, size, 0, gl.RED_INTEGER, gl.UNSIGNED_BYTE, voxels);
 
 
-        // set up render target texture:
-        const targetFrame1 = context.createTexture();
-        context.activeTexture(context.TEXTURE1);
-        context.bindTexture(context.TEXTURE_2D, targetFrame1);
-        context.texImage2D(context.TEXTURE_2D, 0, context.RGBA, width, height, 0, context.RGBA, context.UNSIGNED_BYTE, null);
-        context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MAG_FILTER, context.LINEAR);
-        context.texParameteri(context.TEXTURE_2D, context.TEXTURE_MIN_FILTER, context.LINEAR);
-        context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_S, context.CLAMP_TO_EDGE);
-        context.texParameteri(context.TEXTURE_2D, context.TEXTURE_WRAP_T, context.CLAMP_TO_EDGE);
+        // Set up render target (1) textures:
+        const targetFrame0 = gl.createTexture();
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, targetFrame0);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
 
-        context.bindTexture(context.TEXTURE_2D, null);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
-        this.targets = [targetFrame0, targetFrame1];
-        this.previousFrame = 0;
+        // normal texture
+        const targetNormal0 = gl.createTexture();
+        gl.activeTexture(gl.TEXTURE2);
+        gl.bindTexture(gl.TEXTURE_2D, targetNormal0);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, width, height, 0, gl.RGB, gl.UNSIGNED_BYTE, null);
+
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+        // material-id texture
+        const targetMaterialId0 = gl.createTexture();
+        gl.activeTexture(gl.TEXTURE3);
+        gl.bindTexture(gl.TEXTURE_2D, targetMaterialId0);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8UI, width, height, 0, gl.RED_INTEGER, gl.UNSIGNED_BYTE, null);
+
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+        // offset-id texture
+        const targetOffsetId0 = gl.createTexture();
+        gl.activeTexture(gl.TEXTURE4);
+        gl.bindTexture(gl.TEXTURE_2D, targetOffsetId0);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32I, width, height, 0, gl.RED_INTEGER, gl.INT, null);
+
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+
+        // Set up render target (2) textures:
+        const targetFrame1 = gl.createTexture();
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, targetFrame1);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+        // normal texture
+        const targetNormal1 = gl.createTexture();
+        gl.activeTexture(gl.TEXTURE2);
+        gl.bindTexture(gl.TEXTURE_2D, targetNormal1);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, width, height, 0, gl.RGB, gl.UNSIGNED_BYTE, null);
+
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+        // material-id and normal-id texture
+        const targetMaterialId1 = gl.createTexture();
+        gl.activeTexture(gl.TEXTURE3);
+        gl.bindTexture(gl.TEXTURE_2D, targetMaterialId1);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8UI, width, height, 0, gl.RED_INTEGER, gl.UNSIGNED_BYTE, null);
+
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+        // offset-id texture
+        const targetOffsetId1 = gl.createTexture();
+        gl.activeTexture(gl.TEXTURE4);
+        gl.bindTexture(gl.TEXTURE_2D, targetOffsetId1);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32I, width, height, 0, gl.RED_INTEGER, gl.INT, null);
+
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+        // targets for "ping-pong"
+        this.targets = [
+            {
+                color: targetFrame0,
+                normal: targetNormal0,
+                materialId: targetMaterialId0,
+                offsetId: targetOffsetId0
+            },
+            {
+                color: targetFrame1,
+                normal: targetNormal1,
+                materialId: targetMaterialId1,
+                offsetId: targetOffsetId1
+            }
+        ];
+
+        this.previousTarget = 0;
 
         this.previousCameraMatrix = null;
         this.previousViewMatrix = null;
-
-        this.totalNumberOfSamples = 0;
     }
 
     rebuild(defines) {
-        defines.NUMBER_OF_MATERIALS = NUMBER_OF_MATERIALS;
-        let d = definesToString(defines);
-        this.program = build(this.context, vert.replace('__DEFINES__', d), frag.replace('__DEFINES__', d));
+        const gl = this.context;
 
-        this.context.useProgram(this.program);
+        defines.NUMBER_OF_MATERIALS = NUMBER_OF_MATERIALS;
+
+        const d = definesToString(defines);
+        this.program = build(gl, vert.replace('__DEFINES__', d), frag.replace('__DEFINES__', d));
+
+        gl.useProgram(this.program);
 
         this.uniformLocations = {
-            projectionMatrix: this.context.getUniformLocation(this.program, 'projection_matrix'),
-            inverseProjectionMatrix: this.context.getUniformLocation(this.program, 'inverse_projection_matrix'),
+            projectionMatrix: gl.getUniformLocation(this.program, 'projection_matrix'),
+            inverseProjectionMatrix: gl.getUniformLocation(this.program, 'inverse_projection_matrix'),
 
-            cameraMatrix: this.context.getUniformLocation(this.program, 'camera_matrix'),
+            cameraMatrix: gl.getUniformLocation(this.program, 'camera_matrix'),
+            viewMatrix: gl.getUniformLocation(this.program, 'view_matrix'),
 
-            previousViewMatrix: this.context.getUniformLocation(this.program, 'previous_view_matrix'),
-            previousCameraMatrix: this.context.getUniformLocation(this.program, 'previous_camera_matrix'),
-            
-            reproject: this.context.getUniformLocation(this.program, 'reproject'),
-            previousFrame: this.context.getUniformLocation(this.program, 'previous_frame'),
-            
+            previousViewMatrix: gl.getUniformLocation(this.program, 'previous_view_matrix'),
+            previousCameraMatrix: gl.getUniformLocation(this.program, 'previous_camera_matrix'),
 
-            resolution: this.context.getUniformLocation(this.program, 'resolution'),
-            seed: this.context.getUniformLocation(this.program, 'seed'),
+            reproject: gl.getUniformLocation(this.program, 'reproject'),
+            previousColor: gl.getUniformLocation(this.program, 'previous_color'),
+            previousNormal: gl.getUniformLocation(this.program, 'previous_normal'),
+            previousMaterialId: gl.getUniformLocation(this.program, 'previous_material_id'),
+            previousOffsetId: gl.getUniformLocation(this.program, 'previous_offset_id'),
 
-            voxelData: this.context.getUniformLocation(this.program, 'voxel_data'),
+            resolution: gl.getUniformLocation(this.program, 'resolution'),
+            seed: gl.getUniformLocation(this.program, 'seed'),
 
-            totalNumberOfSamples: this.context.getUniformLocation(this.program, 'total_number_of_samples')
+            voxelData: gl.getUniformLocation(this.program, 'voxel_data'),
         };
     }
 
     setSize(width, height) {
-        const context = this.context;
+        const gl = this.context;
         this.targets.forEach((target) => {
-            context.bindTexture(context.TEXTURE_2D, target);
-            context.texImage2D(context.TEXTURE_2D, 0, context.RGBA, width, height, 0, context.RGBA, context.UNSIGNED_BYTE, null);
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, target.color);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+
+            gl.activeTexture(gl.TEXTURE2);
+            gl.bindTexture(gl.TEXTURE_2D, target.normal);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, width, height, 0, gl.RGB, gl.UNSIGNED_BYTE, null);
+
+            gl.activeTexture(gl.TEXTURE3);
+            gl.bindTexture(gl.TEXTURE_2D, target.materialId);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG8UI, width, height, 0, gl.RG_INTEGER, gl.UNSIGNED_BYTE, null);
+
+            gl.activeTexture(gl.TEXTURE4);
+            gl.bindTexture(gl.TEXTURE_2D, target.offsetId);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32I, width, height, 0, gl.RED_INTEGER, gl.INT, null);
         });
 
-        context.bindTexture(context.TEXTURE_2D, null);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+
+        // reset temporal accumulation.
+        this.previousCameraMatrix = null;
+        this.previousTarget = 0;
     }
 
     draw(framebuffer, {
@@ -110,69 +212,73 @@ export default class PathTracingPass {
         seed = Math.random()
     }) {
 
-        this.context.useProgram(this.program);
+        const gl = this.context;
 
-        this.context.bindFramebuffer(this.context.FRAMEBUFFER, framebuffer);
+        gl.useProgram(this.program);
 
-        this.context.uniform2f(this.uniformLocations.resolution, ...resolution);
-        this.context.uniform1f(this.uniformLocations.seed, seed);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
 
-        this.context.uniformMatrix4fv(this.uniformLocations.cameraMatrix, false, camera.worldMatrix);
-        
-        this.context.uniformMatrix4fv(this.uniformLocations.projectionMatrix, false, camera.projectionMatrix);
-        this.context.uniformMatrix4fv(this.uniformLocations.inverseProjectionMatrix, false, camera.inverseProjectionMatrix);
+        gl.uniform2f(this.uniformLocations.resolution, ...resolution);
+        gl.uniform1f(this.uniformLocations.seed, seed);
 
-        this.context.uniform1ui(this.uniformLocations.totalNumberOfSamples, this.totalNumberOfSamples);
+        gl.uniformMatrix4fv(this.uniformLocations.cameraMatrix, false, camera.worldMatrix);
+        gl.uniformMatrix4fv(this.uniformLocations.viewMatrix, false, camera.viewMatrix);
+
+        gl.uniformMatrix4fv(this.uniformLocations.projectionMatrix, false, camera.projectionMatrix);
+        gl.uniformMatrix4fv(this.uniformLocations.inverseProjectionMatrix, false, camera.inverseProjectionMatrix);
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_3D, this.voxelTexture);
+        gl.uniform1i(this.uniformLocations.voxelData, 0);
 
         if (this.previousCameraMatrix === null) {
 
-            this.context.uniform1i(this.uniformLocations.reproject, false);
-
-            this.context.activeTexture(this.context.TEXTURE1);
-            this.context.bindTexture(this.context.TEXTURE_2D, this.targets[1]);
-            this.context.uniform1i(this.uniformLocations.previousFrame, 1);
-
-            this.context.framebufferTexture2D(this.context.FRAMEBUFFER, this.context.COLOR_ATTACHMENT0, this.context.TEXTURE_2D, this.targets[0], 0);
-
-            this.context.drawBuffers([this.context.COLOR_ATTACHMENT0]);
-
-            this.context.drawArrays(this.context.TRIANGLE_STRIP, 0, 4);
+            gl.uniform1f(this.uniformLocations.reproject, 0.0);
 
             this.previousCameraMatrix = mat4.create();
             this.previousViewMatrix = mat4.create();
 
         } else {
 
-            this.context.uniform1i(this.uniformLocations.reproject, true);
+            gl.uniform1f(this.uniformLocations.reproject, 1.0);
 
             // previous camera matrices:
-            this.context.uniformMatrix4fv(this.uniformLocations.previousViewMatrix, false, this.previousViewMatrix);
-            this.context.uniformMatrix4fv(this.uniformLocations.previousCameraMatrix, false, this.previousCameraMatrix);
-
-            const target = (this.previousFrame + 1) % 2;
-
-            const targetFrame = this.targets[target];
-            const previousFrame = this.targets[this.previousFrame];
-
-            this.context.activeTexture(this.context.TEXTURE1);
-            this.context.bindTexture(this.context.TEXTURE_2D, previousFrame);
-            this.context.uniform1i(this.uniformLocations.previousFrame, 1);
-
-            this.context.framebufferTexture2D(this.context.FRAMEBUFFER, this.context.COLOR_ATTACHMENT0, this.context.TEXTURE_2D, targetFrame, 0);
-
-            this.context.drawBuffers([this.context.COLOR_ATTACHMENT0]);
-
-            this.context.drawArrays(this.context.TRIANGLE_STRIP, 0, 4);
-
-            this.previousFrame = target;
+            gl.uniformMatrix4fv(this.uniformLocations.previousViewMatrix, false, this.previousViewMatrix);
+            gl.uniformMatrix4fv(this.uniformLocations.previousCameraMatrix, false, this.previousCameraMatrix);
 
         }
+
+        const target = (this.previousTarget + 1) % 2;
+
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, this.targets[this.previousTarget].color);
+        gl.uniform1i(this.uniformLocations.previousColor, 1);
+
+        gl.activeTexture(gl.TEXTURE2);
+        gl.bindTexture(gl.TEXTURE_2D, this.targets[this.previousTarget].normal);
+        gl.uniform1i(this.uniformLocations.previousNormal, 2);
+
+        gl.activeTexture(gl.TEXTURE3);
+        gl.bindTexture(gl.TEXTURE_2D, this.targets[this.previousTarget].materialId);
+        gl.uniform1i(this.uniformLocations.previousMaterialId, 3);
+
+        gl.activeTexture(gl.TEXTURE4);
+        gl.bindTexture(gl.TEXTURE_2D, this.targets[this.previousTarget].offsetId);
+        gl.uniform1i(this.uniformLocations.previousOffsetId, 4);
+
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.targets[target].color, 0);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, this.targets[target].normal, 0);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT2, gl.TEXTURE_2D, this.targets[target].materialId, 0);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT3, gl.TEXTURE_2D, this.targets[target].offsetId, 0);
+
+        this.previousTarget = target;
+
+        gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2, gl.COLOR_ATTACHMENT3]);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
         mat4.copy(this.previousCameraMatrix, camera.worldMatrix);
         mat4.copy(this.previousViewMatrix, camera.viewMatrix);
 
-        this.totalNumberOfSamples += 1;
-        
     }
 
 }
