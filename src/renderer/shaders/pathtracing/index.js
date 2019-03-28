@@ -271,11 +271,11 @@ export default class PathTracingPass {
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT2, gl.TEXTURE_2D, this.targets[target].materialId, 0);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT3, gl.TEXTURE_2D, this.targets[target].offsetId, 0);
 
-        this.previousTarget = target;
-
         gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2, gl.COLOR_ATTACHMENT3]);
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+        
 
+        this.previousTarget = target;
         mat4.copy(this.previousCameraMatrix, camera.worldMatrix);
         mat4.copy(this.previousViewMatrix, camera.viewMatrix);
 

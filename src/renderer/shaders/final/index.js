@@ -26,7 +26,7 @@ export default class FinalPass {
         this.context.bindTexture(this.context.TEXTURE_2D, inputFrame);
         this.context.uniform1i(this.uniformLocations.inputFrame, 0);
 
-        this.context.drawArrays(this.context.TRIANGLE_STRIP, 0, 4);
+        this.context.drawArrays(this.context.TRIANGLES, 0, 3);
         
     }
 

@@ -31,16 +31,14 @@ export default class Renderer {
 
         const data = new Float32Array([
             // set #1:
-            -1.0, 1.0,
             -1.0, -1.0,
-            1.0, 1.0,
-            1.0, -1.0,
+            3.0, -1.0,
+            -1.0, 3.0,
 
             // set #2:
-            0.0, 1.0,
             0.0, 0.0,
-            1.0, 1.0,
-            1.0, 0.0
+            2.0, 0.0,
+            0.0, 2.0,
         ]);
 
         gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
@@ -50,7 +48,7 @@ export default class Renderer {
         gl.enableVertexAttribArray(0);
 
         // set #2:
-        gl.vertexAttribPointer(1, 2, gl.FLOAT, 0, 0, 8 * 4); // 8 components * 4 bytes = 32 bytes
+        gl.vertexAttribPointer(1, 2, gl.FLOAT, 0, 0, 6 * 4); // 8 components * 4 bytes = 32 bytes
         gl.enableVertexAttribArray(1);
 
 
