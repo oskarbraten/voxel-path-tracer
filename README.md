@@ -9,7 +9,7 @@
 
 ### Reverse reprojection
 
-The availability of concrete examples on this subject is somewhat limited. I wish remedy this with the following explanation.
+The availability of concrete examples on this subject is somewhat limited. I wish to remedy this with the following explanation.
 
 Temporal reverse reprojection is the act of reprojecting the the previously rendered frame onto the current frame. This allows for reuse of information or, in the case of path tracing, accumulating samples (and thereby converging towards a solution to the rendering equation) even with movement.
 
@@ -18,7 +18,7 @@ Note. Since this is a pure path tracer (no rasterization, excepting the fullscre
 #### How-to
 Given the world space position of a fragment in the current frame, what is its corresponding uv-coordinate in the previous frame?
 
-The answer to this is surprisingly simple:
+The answer is surprisingly simple:
 
 ~~~~glsl
 vec4 p = projection_matrix * previous_view_matrix * vec4(position, 1.0);
@@ -32,14 +32,29 @@ First, the previous view matrix must be passed in as a uniform. This is simply t
 ~~~~glsl
 vec3 previous_color = texture(previous_frame, previous_uv).rgb;
 ~~~~
-Finally, we sample the previous frame to get our color.
+Finally, we sample the previous frame to get the color.
+
+(Note. In most cases the texture sampler should be set to linearly interpolate, as using nearest neighbour can cause warping.)
 
 #### Cache miss
 But wait, why not reproject everything?
-As the camera is moved or rotated, certain parts of the scene may occlude other parts. In these cases, if we were to sample the previous frame anyway, the results would look warped and terrible. So instead of just using them we discard them. We call that a cache miss.
+As the camera is moved or rotated, certain parts of the scene may occlude other parts. In these cases, if we were to sample the previous frame anyway, bleeding between materials would occur. Specifically, from previously occluding surfaces onto disoccluded surfaces. So we just discard them. We call that a cache miss.
 
-So how can we decide if a sample is no longer valid?
+So how can we decide if a sample is no longer valid? It can be done in a number of ways. In this instance, since we're using voxels, the distinction between surfaces is very clear. We can therefore easily decide if a cache sample should be discarded, by looking at the three properties:
 
+ - Normal
+ - Material
+ - Offset (along normal)
+
+We acquire these properties by rendering them to textures and inputting them to the next frame, just like the color.
+
+```glsl
+if (
+    f_material_id == previous_material_id &&
+    distance(f_normal, previous_normal) < 0.1 &&
+    f_offset_id == previous_offset_id
+) { ... }
+```
 ...
 
 ### References
