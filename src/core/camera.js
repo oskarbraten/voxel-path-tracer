@@ -4,7 +4,7 @@ import { degreesToRadians } from './utilities.js';
 import Node from './node.js';
 
 export default class Camera extends Node {
-    constructor(aspectRatio, fov = 75, zfar = null, znear = 1.0) {
+    constructor(aspectRatio, fov = 75, zfar = 100.0, znear = 0.1) {
         super();
 
         this.aspectRatio = aspectRatio;
