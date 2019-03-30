@@ -46,6 +46,8 @@ export default class FilteringPass {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
+        gl.bindTexture(gl.TEXTURE_2D, null);
+
         // target for "ping-pong"
         this.targets = [
             {
@@ -57,7 +59,6 @@ export default class FilteringPass {
         ];
 
         this.previousTarget = 0;
-
     }
 
     getOutput() {
@@ -91,7 +92,6 @@ export default class FilteringPass {
         const gl = this.context;
 
         gl.useProgram(this.program);
-
         gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
 
         gl.uniform2f(this.uniformLocations.resolution, this.width, this.height);
@@ -120,7 +120,6 @@ export default class FilteringPass {
         const target = (this.previousTarget + 1) % 2;
 
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.targets[target].color, 0);
-
         gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
 
         gl.drawArrays(gl.TRIANGLES, 0, 3);

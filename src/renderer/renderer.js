@@ -76,6 +76,8 @@ export default class Renderer {
 
         this.filteringPass = new FilteringPass(gl, context.canvas.width, context.canvas.height);
 
+        this.enableFilter = true;
+
         /**
          * FINAL PHASE SETUP:
          */
@@ -97,12 +99,19 @@ export default class Renderer {
 
     }
 
-    setParams({ maximumDepth = 8} = {}) {
+    setParams({
+        maximumDepth = 5,
+        filter = true
+    } = {}) {
+
+        this.enableFilter = filter;
+
         this.pathTracingPass.rebuild({
             VOXEL_SIZE: VOXEL_SIZE + '.0',
             MAXIMUM_TRAVERSAL_DISTANCE,
             MAXIMUM_DEPTH: maximumDepth
         });
+
     }
 
     draw(delta, camera) {
@@ -110,20 +119,25 @@ export default class Renderer {
         this.pathTracingPass.draw(this.targetFrameBuffer, camera);
 
         // filtering with a separable gaussian blur.
+        if (this.enableFilter) {
 
-        // horizontal:
-        this.filteringPass.draw(this.targetFrameBuffer, this.pathTracingPass.getOutput(), [1.0, 0.0]);
+            // horizontal:
+            this.filteringPass.draw(this.targetFrameBuffer, this.pathTracingPass.getOutput(), [1.0, 0.0]);
 
-        // vertical:
-        const input = {
-            color: this.filteringPass.targets[this.filteringPass.previousTarget].color,
-            normal: this.pathTracingPass.targets[this.pathTracingPass.previousTarget].normal,
-            materialId: this.pathTracingPass.targets[this.pathTracingPass.previousTarget].materialId,
-            offsetId: this.pathTracingPass.targets[this.pathTracingPass.previousTarget].offsetId,
-            cacheTail: this.pathTracingPass.targets[this.pathTracingPass.previousTarget].cacheTail
-        };
-        this.filteringPass.draw(this.targetFrameBuffer, input, [0.0, 1.0]);
+            // vertical:
+            this.filteringPass.draw(this.targetFrameBuffer, {
+                color: this.filteringPass.targets[this.filteringPass.previousTarget].color,
+                normal: this.pathTracingPass.targets[this.pathTracingPass.previousTarget].normal,
+                materialId: this.pathTracingPass.targets[this.pathTracingPass.previousTarget].materialId,
+                offsetId: this.pathTracingPass.targets[this.pathTracingPass.previousTarget].offsetId,
+                cacheTail: this.pathTracingPass.targets[this.pathTracingPass.previousTarget].cacheTail
+            }, [0.0, 1.0]);
 
-        this.finalPass.draw(this.filteringPass.getOutput());
+            this.finalPass.draw(this.filteringPass.getOutput());
+
+        } else {
+            this.finalPass.draw(this.pathTracingPass.getOutput());
+        }
+
     }
 }
