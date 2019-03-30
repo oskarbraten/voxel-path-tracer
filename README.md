@@ -27,10 +27,10 @@ p = p.xyz / p.w; // perspective division
 vec2 previous_uv = vec2((p.x / 2.0) + 0.5, (p.y / 2.0) + 0.5);
 ~~~~
 
-First, the previous view matrix must be passed in as a uniform. This is simply the view matrix that was used when rendering the previous frame. After multiplying the position by the projection and view matrix we do a perspective division, and voila! The position has now been transformed to normalized device coordinates. The last step is to bring it into fullscreen "uv" space.
+First, the previous view matrix must be passed in as a uniform. This is simply the view matrix that was used when rendering the previous frame. After multiplying the position by the projection and view matrix we do a perspective division, and voila! The position has now been transformed to normalized device coordinates. We can then simply transform it to fullscreen "uv" space by dividing by 2 and adding 0.5.
 
 ~~~~glsl
-vec3 previous_color = texture(previous_frame, previous_uv).rgb;
+vec3 previous_color = texture(previous_color, previous_uv).rgb;
 ~~~~
 Finally, we sample the previous frame to get the color.
 
