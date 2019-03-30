@@ -11,23 +11,26 @@ precision highp isampler2D;
 
 __DEFINES__
 
+const float EPSILON = 0.0001;
+
 // coordinates:
 in vec2 st; // [-1.0, 1.0]
 in vec2 uv; // [0.0, 1.0]
 
-// cameras:
+// camera:
 in vec3 ray_direction;
-in vec3 camera_origin;
+in vec3 ray_origin;
 
 layout(location = 0) out vec4 f_color;
 layout(location = 1) out vec3 f_normal;
 layout(location = 2) out uint f_material_id; // material of the block
 layout(location = 3) out int f_offset_id; // offset along the normal of the block.
+layout(location = 4) out float f_cache_tail;
 
 uniform vec2 resolution;
 uniform float seed;
 
-// projection:
+// camera projection:
 uniform mat4 projection_matrix;
 uniform mat4 view_matrix;
 
@@ -35,12 +38,13 @@ uniform mat4 view_matrix;
 uniform float reproject; // 0.0 = disabled, 1.0 = enabled.
 uniform mat4 previous_view_matrix;
 
+uniform usampler3D voxel_data;
+
 uniform sampler2D previous_color;
 uniform sampler2D previous_normal;
 uniform usampler2D previous_material_id;
 uniform isampler2D previous_offset_id;
-
-uniform usampler3D voxel_data;
+uniform sampler2D previous_cache_tail;
 
 struct material {
     vec3 albedo;
@@ -166,7 +170,7 @@ bool scatter(ray r, in hit_record record, out vec3 attenuation, out ray scattere
 bool voxel_traversal(in ray r, out hit_record record) {
 
     vec3 origin = r.origin;
-    vec3 direction = r.direction;
+    vec3 direction = normalize(r.direction);
 
     ivec3 current_voxel = ivec3(floor(origin / VOXEL_SIZE));
 
@@ -211,7 +215,7 @@ bool voxel_traversal(in ray r, out hit_record record) {
         record.id = texelFetch(voxel_data, current_voxel, 0).r;
 
         if (record.id != 0u) {
-            record.position = point_at(r, record.t);
+            record.position = point_at(r, record.t + EPSILON);
             return true;
         }
 
@@ -224,7 +228,7 @@ bool voxel_traversal(in ray r, out hit_record record) {
 bool first_voxel_traversal(in ray r, out hit_record record, out int offset_id) {
 
     vec3 origin = r.origin;
-    vec3 direction = r.direction;
+    vec3 direction = normalize(r.direction);
 
     ivec3 current_voxel = ivec3(floor(origin / VOXEL_SIZE));
 
@@ -275,7 +279,7 @@ bool first_voxel_traversal(in ray r, out hit_record record, out int offset_id) {
         record.id = texelFetch(voxel_data, current_voxel, 0).r;
 
         if (record.id != 0u) {
-            record.position = point_at(r, record.t);
+            record.position = point_at(r, record.t + EPSILON);
             return true;
         }
 
@@ -335,6 +339,7 @@ vec3 trace(ray r, out hit_record record) {
 
 const float ALPHA = 1.0/9.0;
 vec3 temporal_reverse_reprojection(in hit_record record, vec3 color) {
+
     if (record.id != 0u) {
 
         // reverse reprojection:
@@ -346,6 +351,8 @@ vec3 temporal_reverse_reprojection(in hit_record record, vec3 color) {
         vec3 previous_normal = texture(previous_normal, previous_uv).rgb;
         int previous_offset_id = texture(previous_offset_id, previous_uv).r;
         uint previous_material_id = texture(previous_material_id, previous_uv).r;
+
+        float previous_cache_tail = texture(previous_cache_tail, previous_uv).r;
 
         if (
             // within bounds:
@@ -359,12 +366,24 @@ vec3 temporal_reverse_reprojection(in hit_record record, vec3 color) {
             distance(f_normal, previous_normal) < 0.1 &&
             f_offset_id == previous_offset_id
         ) {
+
             float alpha = ALPHA * reproject;
             vec3 previous_color = texture(previous_color, previous_uv).rgb;
+
+            f_cache_tail = (1.0 - alpha) * previous_cache_tail;
+            
             return (alpha * color) + (1.0 - alpha) * previous_color;
+        } else {
+
+            // completely missed the cache.
+            f_cache_tail = 1.0;
+            return color;
         }
     }
 
+    // hit the skybox, set cache to 0.0 to indicate that the color is correct.
+    f_cache_tail = 0.0;
+    
     return color;
 }
 
@@ -372,14 +391,10 @@ void main() {
 
     rand_seed = seed; // seed the random number generator.
 
-    vec3 origin = camera_origin;
+    vec3 origin = ray_origin;
     vec3 direction = normalize(ray_direction);
 
-    float du = (rand() / resolution.x) * 0.02;
-    float dv = (rand() / resolution.y) * 0.02;
-    vec3 aa = vec3(du, dv, 0.0);
-
-    ray r = ray(origin, direction + aa);
+    ray r = ray(origin, direction);
 
     hit_record record; // get record from first bounce for reprojection.
     vec3 color = trace(r, record);

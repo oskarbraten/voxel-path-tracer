@@ -1,5 +1,6 @@
 import PathTracingPass from './shaders/pathtracing/index.js';
 import FinalPass from './shaders/final/index.js';
+import FilteringPass from './shaders/filtering/index.js';
 
 const VOXEL_SIZE = 1.0;
 const MAXIMUM_TRAVERSAL_DISTANCE = 128;
@@ -70,6 +71,12 @@ export default class Renderer {
         this.pathTracingPass = pathTracingPass;
 
         /**
+         * FILTERING PHASE SETUP:
+         */
+
+        this.filteringPass = new FilteringPass(gl, context.canvas.width, context.canvas.height);
+
+        /**
          * FINAL PHASE SETUP:
          */
 
@@ -86,6 +93,7 @@ export default class Renderer {
         gl.clearColor(1.0, 1.0, 1.0, 1.0);
 
         this.pathTracingPass.setSize(width, height);
+        this.filteringPass.setSize(width, height);
 
     }
 
@@ -99,32 +107,23 @@ export default class Renderer {
 
     draw(delta, camera) {
 
-        this.pathTracingPass.draw(this.targetFrameBuffer, {
-            resolution: [this.context.canvas.width, this.context.canvas.height],
-            camera
-        });
+        this.pathTracingPass.draw(this.targetFrameBuffer, camera);
 
-        const finalFrame = this.pathTracingPass.targets[this.pathTracingPass.previousTarget].color;
-        this.finalPass.draw(finalFrame);
+        // filtering with a separable gaussian blur.
 
-        // /**
-        //  * Normals phase:
-        //  */
-        // gl.useProgram(normalShader.program);
-        // gl.bindFramebuffer(gl.FRAMEBUFFER, targetFrameBuffer);
+        // horizontal:
+        this.filteringPass.draw(this.targetFrameBuffer, this.pathTracingPass.getOutput(), [1.0, 0.0]);
 
-        // gl.uniformMatrix4fv(normalShader.uniformLocations.cameraMatrix, false, camera.node.worldMatrix);
-        // gl.uniform1f(normalShader.uniformLocations.cameraFov, camera.yfov);
-        // gl.uniform1f(normalShader.uniformLocations.cameraAspectRatio, camera.aspectRatio);
+        // vertical:
+        const input = {
+            color: this.filteringPass.targets[this.filteringPass.previousTarget].color,
+            normal: this.pathTracingPass.targets[this.pathTracingPass.previousTarget].normal,
+            materialId: this.pathTracingPass.targets[this.pathTracingPass.previousTarget].materialId,
+            offsetId: this.pathTracingPass.targets[this.pathTracingPass.previousTarget].offsetId,
+            cacheTail: this.pathTracingPass.targets[this.pathTracingPass.previousTarget].cacheTail
+        };
+        this.filteringPass.draw(this.targetFrameBuffer, input, [0.0, 1.0]);
 
-        // gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, materialNormalTexture, 0);
-        // gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, planeTexture, 0);
-
-        // gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
-
-        // gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-
-        // // unbind attachment 1 to avoid drawing to it.
-        // gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, null, 0);
+        this.finalPass.draw(this.filteringPass.getOutput());
     }
 }
