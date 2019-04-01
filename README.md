@@ -1,9 +1,13 @@
 # Real-time voxel path-tracer
 
+The demo only works on Chromium/Chrome for now.
+
+[Demo](https://oskarbraten.github.io/voxel-path-tracer/)
+
 ### Features
 - [x] Temporal reverse reprojection
 - [x] Ray voxel traversal
-- [ ] Filtering
+- [-] Filtering
 - [ ] Light sources
 - [ ] HDR
 
