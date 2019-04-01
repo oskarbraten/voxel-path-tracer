@@ -7,7 +7,7 @@ The demo only works on Chromium/Chrome for now.
 ### Features
 - [x] Temporal reverse reprojection
 - [x] Ray voxel traversal
-- [-] Filtering
+- [x] Filtering
 - [ ] Light sources
 - [ ] HDR
 
