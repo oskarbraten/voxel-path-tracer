@@ -1,4 +1,4 @@
-import { build, definesToString } from '../utilities.js';
+import { build } from '../utilities.js';
 
 import frag from './fragment.js';
 import vert from './vertex.js';
@@ -11,22 +11,24 @@ export default class FinalPass {
         this.context = context;
 
         this.uniformLocations = {
-            inputFrame: context.getUniformLocation(this.program, 'input_frame'),
+            inputColor: context.getUniformLocation(this.program, 'input_color')
         };
 
     }
 
-    draw(inputFrame) {
+    draw({
+        color
+    }) {
 
         this.context.useProgram(this.program);
 
         this.context.bindFramebuffer(this.context.FRAMEBUFFER, null);
 
         this.context.activeTexture(this.context.TEXTURE0);
-        this.context.bindTexture(this.context.TEXTURE_2D, inputFrame);
-        this.context.uniform1i(this.uniformLocations.inputFrame, 0);
+        this.context.bindTexture(this.context.TEXTURE_2D, color);
+        this.context.uniform1i(this.uniformLocations.inputColor, 0);
 
-        this.context.drawArrays(this.context.TRIANGLE_STRIP, 0, 4);
+        this.context.drawArrays(this.context.TRIANGLES, 0, 3);
         
     }
 

@@ -9,6 +9,9 @@ import vert from './vertex.js';
 export default class PathTracingPass {
     constructor(context, width, height, defines = {}) {
 
+        this.width = width;
+        this.height = height;
+
         this.context = context;
         const gl = context;
 
@@ -80,6 +83,17 @@ export default class PathTracingPass {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
+        // cache-tail texture
+        const targetCacheTail0 = gl.createTexture();
+        gl.activeTexture(gl.TEXTURE5);
+        gl.bindTexture(gl.TEXTURE_2D, targetCacheTail0);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, width, height, 0, gl.RED, gl.UNSIGNED_BYTE, null);
+
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
 
         // Set up render target (2) textures:
         const targetFrame1 = gl.createTexture();
@@ -124,19 +138,32 @@ export default class PathTracingPass {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
+        // cache-tail texture
+        const targetCacheTail1 = gl.createTexture();
+        gl.activeTexture(gl.TEXTURE5);
+        gl.bindTexture(gl.TEXTURE_2D, targetCacheTail1);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, width, height, 0, gl.RED, gl.UNSIGNED_BYTE, null);
+
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
         // targets for "ping-pong"
         this.targets = [
             {
                 color: targetFrame0,
                 normal: targetNormal0,
                 materialId: targetMaterialId0,
-                offsetId: targetOffsetId0
+                offsetId: targetOffsetId0,
+                cacheTail: targetCacheTail0
             },
             {
                 color: targetFrame1,
                 normal: targetNormal1,
                 materialId: targetMaterialId1,
-                offsetId: targetOffsetId1
+                offsetId: targetOffsetId1,
+                cacheTail: targetCacheTail1
             }
         ];
 
@@ -167,10 +194,12 @@ export default class PathTracingPass {
             previousCameraMatrix: gl.getUniformLocation(this.program, 'previous_camera_matrix'),
 
             reproject: gl.getUniformLocation(this.program, 'reproject'),
+
             previousColor: gl.getUniformLocation(this.program, 'previous_color'),
             previousNormal: gl.getUniformLocation(this.program, 'previous_normal'),
             previousMaterialId: gl.getUniformLocation(this.program, 'previous_material_id'),
             previousOffsetId: gl.getUniformLocation(this.program, 'previous_offset_id'),
+            previousCacheTail: gl.getUniformLocation(this.program, 'previous_cache_tail'),
 
             resolution: gl.getUniformLocation(this.program, 'resolution'),
             seed: gl.getUniformLocation(this.program, 'seed'),
@@ -179,7 +208,15 @@ export default class PathTracingPass {
         };
     }
 
+    getOutput() {
+        return this.targets[this.previousTarget];
+    }
+
     setSize(width, height) {
+
+        this.width = width;
+        this.height = height;
+
         const gl = this.context;
         this.targets.forEach((target) => {
             gl.activeTexture(gl.TEXTURE1);
@@ -197,6 +234,10 @@ export default class PathTracingPass {
             gl.activeTexture(gl.TEXTURE4);
             gl.bindTexture(gl.TEXTURE_2D, target.offsetId);
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32I, width, height, 0, gl.RED_INTEGER, gl.INT, null);
+
+            gl.activeTexture(gl.TEXTURE5);
+            gl.bindTexture(gl.TEXTURE_2D, target.cacheTail);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, width, height, 0, gl.RED, gl.UNSIGNED_BYTE, null);
         });
 
         gl.bindTexture(gl.TEXTURE_2D, null);
@@ -206,11 +247,7 @@ export default class PathTracingPass {
         this.previousTarget = 0;
     }
 
-    draw(framebuffer, {
-        resolution,
-        camera,
-        seed = Math.random()
-    }) {
+    draw(framebuffer, camera, seed = Math.random()) {
 
         const gl = this.context;
 
@@ -218,7 +255,7 @@ export default class PathTracingPass {
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
 
-        gl.uniform2f(this.uniformLocations.resolution, ...resolution);
+        gl.uniform2f(this.uniformLocations.resolution, this.width, this.height);
         gl.uniform1f(this.uniformLocations.seed, seed);
 
         gl.uniformMatrix4fv(this.uniformLocations.cameraMatrix, false, camera.worldMatrix);
@@ -266,16 +303,21 @@ export default class PathTracingPass {
         gl.bindTexture(gl.TEXTURE_2D, this.targets[this.previousTarget].offsetId);
         gl.uniform1i(this.uniformLocations.previousOffsetId, 4);
 
+        gl.activeTexture(gl.TEXTURE5);
+        gl.bindTexture(gl.TEXTURE_2D, this.targets[this.previousTarget].cacheTail);
+        gl.uniform1i(this.uniformLocations.previousCacheTail, 5);
+
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.targets[target].color, 0);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, this.targets[target].normal, 0);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT2, gl.TEXTURE_2D, this.targets[target].materialId, 0);
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT3, gl.TEXTURE_2D, this.targets[target].offsetId, 0);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT4, gl.TEXTURE_2D, this.targets[target].cacheTail, 0);
+
+        gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2, gl.COLOR_ATTACHMENT3, gl.COLOR_ATTACHMENT4]);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+        
 
         this.previousTarget = target;
-
-        gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2, gl.COLOR_ATTACHMENT3]);
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-
         mat4.copy(this.previousCameraMatrix, camera.worldMatrix);
         mat4.copy(this.previousViewMatrix, camera.viewMatrix);
 

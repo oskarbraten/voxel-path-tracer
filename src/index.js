@@ -7,9 +7,11 @@ import Camera from './core/camera.js';
 
 let parameters = {
     maximumDepth: 5,
+    filter: true,
     update: () => {
         renderer.setParams({
-            maximumDepth: parameters.maximumDepth
+            maximumDepth: parameters.maximumDepth,
+            filter: parameters.filter
         });
     }
 };
@@ -17,6 +19,7 @@ let parameters = {
 const gui = new dat.GUI();
 
 gui.add(parameters, 'maximumDepth', 1, 64, 1).name("Maximum Depth");
+gui.add(parameters, 'filter').name("Enable filter");
 gui.add(parameters, 'update').name("Update shader");
 
 const gl = document.createElement('canvas').getContext('webgl2');
