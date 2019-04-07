@@ -1,6 +1,6 @@
 # Real-time voxel path-tracer
 
-The demo only works on Chromium/Chrome for now.
+__The demo only works on Chromium/Chrome at the moment.__
 
 [Demo](https://oskarbraten.github.io/voxel-path-tracer/)
 
