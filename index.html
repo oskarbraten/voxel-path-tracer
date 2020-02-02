@@ -15,10 +15,44 @@
             width: 100%;
             height: 100%;
         }
+
+        #prompt {
+            position: fixed;
+
+            height: 12rem;
+            width: 28rem;
+
+            top: calc((100% / 2) - 6rem);
+            left: calc((100% / 2) - 14rem);
+
+            background: #1a1a1a;
+
+            border-radius: 0.1rem;
+            border: solid 1px #2c2c2c;
+            
+            display: flex;
+            flex-direction: column;
+
+            justify-content: center;
+            align-items: center;
+
+            pointer-events: none;
+
+            font-family: sans-serif;
+            color: #eee;
+        }
+
+        #prompt > p:first-child {
+            font-size: 1.5rem;
+        }
     </style>
 </head>
 
 <body>
+    <div id="prompt">
+        <p>Click to lock cursor</p>
+        <p>Use WASD-keys to move (ESC to unlock)</p>
+    </div>
     <script>
     /*! FPSMeter 0.3.1 - 9th May 2013 | https://github.com/Darsain/fpsmeter */
     (function(m,j){function s(a,e){for(var g in e)try{a.style[g]=e[g]}catch(j){}return a}function H(a){return null==a?String(a):"object"===typeof a||"function"===typeof a?Object.prototype.toString.call(a).match(/\s([a-z]+)/i)[1].toLowerCase()||"object":typeof a}function R(a,e){if("array"!==H(e))return-1;if(e.indexOf)return e.indexOf(a);for(var g=0,j=e.length;g<j;g++)if(e[g]===a)return g;return-1}function I(){var a=arguments,e;for(e in a[1])if(a[1].hasOwnProperty(e))switch(H(a[1][e])){case "object":a[0][e]=

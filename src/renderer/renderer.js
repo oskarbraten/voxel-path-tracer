@@ -6,7 +6,7 @@ const VOXEL_SIZE = 1.0;
 const MAXIMUM_TRAVERSAL_DISTANCE = 128;
 
 export default class Renderer {
-    constructor(context = null, { maximumDepth = 8 } = {}) {
+    constructor(context = null, { maximumDepth = 8, filter = true } = {}) {
 
         if (context === null) {
             throw Error('You must pass a WebGL2 context to the renderer.');
@@ -76,7 +76,7 @@ export default class Renderer {
 
         this.filteringPass = new FilteringPass(gl, context.canvas.width, context.canvas.height);
 
-        this.enableFilter = true;
+        this.enableFilter = filter;
 
         /**
          * FINAL PHASE SETUP:

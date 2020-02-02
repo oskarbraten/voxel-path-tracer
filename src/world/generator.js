@@ -23,7 +23,7 @@ const MATERIALS = [
     },
     {
         albedo: hexToRGBNormalized(0x7d7071),
-        fuzz: 0.1,
+        fuzz: 0.5,
         refractiveIndex: 0.0,
         type: 1
     }

@@ -7,7 +7,7 @@ import Camera from './core/camera.js';
 
 let parameters = {
     maximumDepth: 5,
-    filter: true,
+    filter: false,
     update: () => {
         renderer.setParams({
             maximumDepth: parameters.maximumDepth,
@@ -47,6 +47,7 @@ window.addEventListener('resize', () => {
 
 let cameraController = new CameraController(cameraNode);
 
+const prompt = document.getElementById("prompt");
 
 let canvas = renderer.context.canvas;
 canvas.addEventListener('click', () => {
@@ -64,8 +65,10 @@ function updateCamRotation(event) {
 document.addEventListener('pointerlockchange', () => {
     if (document.pointerLockElement === canvas) {
         canvas.addEventListener('mousemove', updateCamRotation, false);
+        prompt.style.visibility = "hidden";
     } else {
         canvas.removeEventListener('mousemove', updateCamRotation, false);
+        prompt.style.visibility = "visible";
     }
 });
 
